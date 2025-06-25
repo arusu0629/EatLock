@@ -11,14 +11,9 @@ import SwiftData
 @main
 struct EatLockApp: App {
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            ActionLog.self,
-        ])
-        // セキュアなModelConfigurationを使用
-        let modelConfiguration = DataSecurityManager.createSecureModelConfiguration()
-
+        // セキュアなModelContainerを使用
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try DataSecurityManager.createSecureModelContainer()
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }

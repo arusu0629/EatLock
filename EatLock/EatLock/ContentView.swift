@@ -11,11 +11,26 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ActionLog.timestamp, order: .reverse) private var actionLogs: [ActionLog]
-    @State private var repository: ActionLogRepository?
+    @State private var repository: ActionLogRepository
     @State private var newLogContent = ""
     @State private var selectedLogType: LogType = .other
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    @State private var isRepositoryInitialized = false
+    
+    init() {
+        // 仮の初期化（実際のmodelContextは後でsetupで設定）
+        do {
+            let container = try ModelContainer(for: ActionLog.self)
+            let context = ModelContext(container)
+            _repository = State(initialValue: ActionLogRepository(modelContext: context))
+        } catch {
+            // 初期化に失敗した場合は仮のコンテキストを作成
+            let container = try! ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            let context = ModelContext(container)
+            _repository = State(initialValue: ActionLogRepository(modelContext: context))
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -73,19 +88,27 @@ struct ContentView: View {
             } message: {
                 Text(alertMessage)
             }
+            .disabled(!isRepositoryInitialized)
         }
     }
     
     private func setupRepository() {
         repository = ActionLogRepository(modelContext: modelContext)
+        isRepositoryInitialized = true
     }
     
     private func addActionLog() {
         let content = newLogContent.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
         
+        guard isRepositoryInitialized else {
+            alertMessage = "データベースの初期化に失敗しました。アプリを再起動してください。"
+            showingAlert = true
+            return
+        }
+        
         do {
-            _ = try repository?.createActionLog(content: content, logType: selectedLogType)
+            _ = try repository.createActionLog(content: content, logType: selectedLogType)
             newLogContent = ""
             selectedLogType = .other
         } catch {
@@ -95,9 +118,15 @@ struct ContentView: View {
     }
     
     private func deleteActionLogs(offsets: IndexSet) {
+        guard isRepositoryInitialized else {
+            alertMessage = "データベースの初期化に失敗しました。アプリを再起動してください。"
+            showingAlert = true
+            return
+        }
+        
         do {
             let logsToDelete = offsets.map { actionLogs[$0] }
-            try repository?.deleteActionLogs(logsToDelete)
+            try repository.deleteActionLogs(logsToDelete)
         } catch {
             alertMessage = error.localizedDescription
             showingAlert = true

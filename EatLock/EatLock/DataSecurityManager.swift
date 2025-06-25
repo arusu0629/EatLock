@@ -17,8 +17,8 @@ class DataSecurityManager {
     
     // MARK: - Model Configuration with Security
     
-    /// セキュアなModelConfigurationを作成
-    static func createSecureModelConfiguration() -> ModelConfiguration {
+    /// セキュアなModelContainerを作成
+    static func createSecureModelContainer() throws -> ModelContainer {
         // SwiftDataでの暗号化設定
         // 注意: SwiftDataはiOS 17以降でファイルシステムレベルでの暗号化を提供
         // 追加のセキュリティが必要な場合は、データ保存前に個別に暗号化を行う
@@ -30,7 +30,7 @@ class DataSecurityManager {
             // CloudKitは使用しない（プライバシー保護のため）
         )
         
-        return configuration
+        return try ModelContainer(for: ActionLog.self, configurations: configuration)
     }
     
     // MARK: - Biometric Authentication
