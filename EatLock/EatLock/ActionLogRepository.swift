@@ -1,0 +1,265 @@
+//
+//  ActionLogRepository.swift
+//  EatLock
+//
+//  Created by arusu0629 on 2025/06/25.
+//
+
+import Foundation
+import SwiftData
+
+/// ActionLogのデータアクセスを管理するリポジトリクラス
+@Observable
+class ActionLogRepository {
+    private let modelContext: ModelContext
+    
+    init(modelContext: ModelContext) {
+        self.modelContext = modelContext
+    }
+    
+    // MARK: - Create
+    
+    /// 新しい行動ログを作成
+    func createActionLog(content: String, logType: LogType = .other) throws -> ActionLog {
+        let actionLog = ActionLog(content: content, logType: logType)
+        modelContext.insert(actionLog)
+        
+        do {
+            try modelContext.save()
+            return actionLog
+        } catch {
+            modelContext.rollback()
+            throw ActionLogError.createFailed(error)
+        }
+    }
+    
+    // MARK: - Read
+    
+    /// すべての行動ログを取得（新しい順）
+    func fetchAllActionLogs() throws -> [ActionLog] {
+        let descriptor = FetchDescriptor<ActionLog>(
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
+    
+    /// 今日の行動ログを取得
+    func fetchTodaysActionLogs() throws -> [ActionLog] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        let predicate = #Predicate<ActionLog> { log in
+            log.timestamp >= startOfDay && log.timestamp < endOfDay
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
+    
+    /// 指定期間の行動ログを取得
+    func fetchActionLogs(from startDate: Date, to endDate: Date) throws -> [ActionLog] {
+        let predicate = #Predicate<ActionLog> { log in
+            log.timestamp >= startDate && log.timestamp <= endDate
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
+    
+    /// 特定のログタイプの行動ログを取得
+    func fetchActionLogs(ofType logType: LogType) throws -> [ActionLog] {
+        let predicate = #Predicate<ActionLog> { log in
+            log.logType == logType
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
+    
+    /// IDで特定の行動ログを取得
+    func fetchActionLog(by id: UUID) throws -> ActionLog? {
+        let predicate = #Predicate<ActionLog> { log in
+            log.id == id
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(predicate: predicate)
+        
+        do {
+            return try modelContext.fetch(descriptor).first
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
+    
+    // MARK: - Update
+    
+    /// 行動ログの内容を更新
+    func updateActionLog(_ actionLog: ActionLog, content: String) throws {
+        actionLog.updateContent(content)
+        
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw ActionLogError.updateFailed(error)
+        }
+    }
+    
+    /// 行動ログにAIフィードバックを設定
+    func setAIFeedback(for actionLog: ActionLog, feedback: String, preventedCalories: Int? = nil) throws {
+        actionLog.setAIFeedback(feedback, preventedCalories: preventedCalories)
+        
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw ActionLogError.updateFailed(error)
+        }
+    }
+    
+    /// 行動ログのタイプを更新
+    func updateLogType(for actionLog: ActionLog, logType: LogType) throws {
+        actionLog.logType = logType
+        actionLog.updatedAt = Date()
+        
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw ActionLogError.updateFailed(error)
+        }
+    }
+    
+    // MARK: - Delete
+    
+    /// 特定の行動ログを削除
+    func deleteActionLog(_ actionLog: ActionLog) throws {
+        modelContext.delete(actionLog)
+        
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw ActionLogError.deleteFailed(error)
+        }
+    }
+    
+    /// 複数の行動ログを削除
+    func deleteActionLogs(_ actionLogs: [ActionLog]) throws {
+        for actionLog in actionLogs {
+            modelContext.delete(actionLog)
+        }
+        
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw ActionLogError.deleteFailed(error)
+        }
+    }
+    
+    /// 指定期間より古い行動ログを削除
+    func deleteOldActionLogs(olderThan date: Date) throws {
+        let predicate = #Predicate<ActionLog> { log in
+            log.timestamp < date
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(predicate: predicate)
+        
+        do {
+            let oldLogs = try modelContext.fetch(descriptor)
+            try deleteActionLogs(oldLogs)
+        } catch {
+            throw ActionLogError.deleteFailed(error)
+        }
+    }
+    
+    // MARK: - Statistics
+    
+    /// 統計情報を計算
+    func calculateStatistics() throws -> ActionLogStats {
+        do {
+            let allLogs = try fetchAllActionLogs()
+            return ActionLog.calculateStats(from: allLogs)
+        } catch {
+            throw ActionLogError.statisticsCalculationFailed(error)
+        }
+    }
+    
+    /// 今日の統計情報を計算
+    func calculateTodaysStatistics() throws -> ActionLogStats {
+        do {
+            let todaysLogs = try fetchTodaysActionLogs()
+            return ActionLog.calculateStats(from: todaysLogs)
+        } catch {
+            throw ActionLogError.statisticsCalculationFailed(error)
+        }
+    }
+    
+    /// 期間指定での統計情報を計算
+    func calculateStatistics(from startDate: Date, to endDate: Date) throws -> ActionLogStats {
+        do {
+            let logs = try fetchActionLogs(from: startDate, to: endDate)
+            return ActionLog.calculateStats(from: logs)
+        } catch {
+            throw ActionLogError.statisticsCalculationFailed(error)
+        }
+    }
+}
+
+// MARK: - ActionLogError
+enum ActionLogError: LocalizedError {
+    case createFailed(Error)
+    case fetchFailed(Error)
+    case updateFailed(Error)
+    case deleteFailed(Error)
+    case statisticsCalculationFailed(Error)
+    case notFound
+    
+    var errorDescription: String? {
+        switch self {
+        case .createFailed(let error):
+            return "行動ログの作成に失敗しました: \(error.localizedDescription)"
+        case .fetchFailed(let error):
+            return "行動ログの取得に失敗しました: \(error.localizedDescription)"
+        case .updateFailed(let error):
+            return "行動ログの更新に失敗しました: \(error.localizedDescription)"
+        case .deleteFailed(let error):
+            return "行動ログの削除に失敗しました: \(error.localizedDescription)"
+        case .statisticsCalculationFailed(let error):
+            return "統計情報の計算に失敗しました: \(error.localizedDescription)"
+        case .notFound:
+            return "指定された行動ログが見つかりません"
+        }
+    }
+} 
