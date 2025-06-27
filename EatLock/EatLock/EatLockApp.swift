@@ -11,13 +11,9 @@ import SwiftData
 @main
 struct EatLockApp: App {
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
+        // セキュアなModelContainerを使用
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try DataSecurityManager.createSecureModelContainer()
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
@@ -26,6 +22,16 @@ struct EatLockApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                    // アプリがバックグラウンドに移行する際のセキュリティ処理
+                    DataSecurityManager.shared.handleAppWillResignActive()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    // アプリがフォアグラウンドに復帰する際のセキュリティ処理
+                    Task {
+                        await DataSecurityManager.shared.handleAppDidBecomeActive()
+                    }
+                }
         }
         .modelContainer(sharedModelContainer)
     }
