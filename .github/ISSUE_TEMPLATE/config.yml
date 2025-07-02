@@ -5,4 +5,7 @@ contact_links:
     about: プロジェクトの要求仕様書とタスク分解書を確認する
   - name: 🤖 AI実装ガイド
     url: https://github.com/arusu0629/EatLock/wiki
-    about: AI実装時の注意点とガイドラインを確認する 
+    about: AI実装時の注意点とガイドラインを確認する
+  - name: ⚠️ 重要：AI操作制限事項
+    url: https://github.com/arusu0629/EatLock/blob/main/.github/AI_OPERATION_RULES.md
+    about: AIによる自動操作の制限事項と承認フローについて 
