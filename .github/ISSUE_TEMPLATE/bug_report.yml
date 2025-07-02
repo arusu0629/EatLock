@@ -1,0 +1,59 @@
+name: バグ報告
+description: EatLockアプリのバグを報告
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: バグの説明
+      description: 発生したバグについて詳細に説明してください
+      placeholder: "バグの内容を具体的に記述してください"
+    validations:
+      required: true
+  
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: 再現手順
+      description: バグを再現するための手順を記述してください
+      placeholder: |
+        1. '...'に移動
+        2. '....'をクリック
+        3. エラーが発生
+    validations:
+      required: true
+  
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: 期待される動作
+      description: 本来どのような動作をするべきかを記述してください
+    validations:
+      required: true
+  
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: 実際の動作
+      description: 実際に発生した動作を記述してください
+    validations:
+      required: true
+  
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境情報
+      description: バグが発生した環境の情報
+      placeholder: |
+        - iOS バージョン: 17.0
+        - デバイス: iPhone 15 Pro
+        - アプリバージョン: 1.0.0
+    validations:
+      required: true
+  
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: 追加情報
+      description: スクリーンショット、ログ、その他の関連情報があれば記述してください 

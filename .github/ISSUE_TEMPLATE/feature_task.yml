@@ -1,0 +1,131 @@
+name: 機能実装タスク
+description: EatLockアプリの機能実装用Issue
+title: "[TASK] "
+labels: ["enhancement", "task"]
+body:
+  - type: dropdown
+    id: phase
+    attributes:
+      label: フェーズ
+      description: このタスクが属するフェーズを選択してください
+      options:
+        - フェーズ1: 基盤構築
+        - フェーズ2: コア機能実装
+        - フェーズ3: AI機能統合
+        - フェーズ4: 追加機能
+        - フェーズ5: 最終調整
+    validations:
+      required: true
+  
+  - type: input
+    id: task_number
+    attributes:
+      label: タスク番号
+      description: タスク分解書に記載のタスク番号（例：TASK1-1）
+      placeholder: "例: TASK1-1"
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 優先度
+      description: このタスクの優先度を選択してください
+      options:
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  
+  - type: textarea
+    id: objective
+    attributes:
+      label: 目標
+      description: このタスクで達成したい目標を明確に記述してください
+      placeholder: "例: SwiftDataを使用した行動ログエンティティの作成"
+    validations:
+      required: true
+  
+  - type: textarea
+    id: requirements
+    attributes:
+      label: 実装要件
+      description: 具体的な実装内容と要件を詳細に記述してください
+      placeholder: |
+        - ActionLogエンティティの定義
+        - 必要なプロパティの実装
+        - SwiftDataの@Modelマクロ適用
+        - etc.
+    validations:
+      required: true
+  
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: 完了条件（Acceptance Criteria）
+      description: タスク完了の判定基準をチェックリスト形式で記述してください
+      value: |
+        - [ ] 機能が正常に動作する
+        - [ ] ビルドエラーがない
+        - [ ] テストが通る（該当する場合）
+        - [ ] コードレビューが完了している
+        - [ ] UI/UXが要件仕様に準拠している
+    validations:
+      required: true
+  
+  - type: textarea
+    id: technical_details
+    attributes:
+      label: 技術詳細
+      description: 実装に必要な技術的詳細、コード例、参考資料などを記述してください
+      placeholder: |
+        ```swift
+        // 期待するコード構造の例
+        @Model
+        class ActionLog {
+            // 具体的な実装内容
+        }
+        ```
+    validations:
+      required: true
+  
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依存関係
+      description: 他のタスクとの依存関係や、このタスクを開始する前に完了している必要がある作業
+      placeholder: "例: TASK1-1の完了後に開始可能"
+  
+  - type: input
+    id: estimate
+    attributes:
+      label: 作業時間見積もり（時間）
+      description: このタスクの完了に必要な作業時間の見積もり
+      placeholder: "例: 4"
+  
+  - type: input
+    id: pr_size
+    attributes:
+      label: 予想PR規模（行数）
+      description: このタスクで変更される予想コード行数
+      placeholder: "例: 200"
+  
+  - type: textarea
+    id: ai_implementation_notes
+    attributes:
+      label: AI実装指示
+      description: AIが実装する際の具体的な指示や注意点
+      placeholder: |
+        ## 実装対象ファイル
+        - 新規作成: `Models/ActionLog.swift`
+        - 修正対象: `ContentView.swift`
+        
+        ## 実装時の注意点
+        - SwiftDataの@Modelマクロを使用
+        - 暗号化対応を考慮
+        - プライバシー保護を重視
+        
+        ## 関連ファイル
+        - `DataSecurityManager.swift`: 暗号化関連
+        - `ActionLogRepository.swift`: データアクセス層 
