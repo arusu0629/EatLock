@@ -9,7 +9,7 @@ import Foundation
 import SwiftData
 
 @Model
-final class ActionLog {
+final class ActionLog: Identifiable {
     /// 行動ログのID（UUID）
     var id: UUID
     
