@@ -34,52 +34,60 @@ struct ContentView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
-                // 統計カード（仮実装）
-                if let stats = calculateStats() {
-                    HStack(spacing: 16) {
-                        StatCard(title: "記録回数", value: "\(stats.totalLogs)", color: .blue)
-                        StatCard(title: "防いだカロリー", value: "\(stats.totalPreventedCalories)", color: .green)
-                        StatCard(title: "継続日数", value: "\(stats.consecutiveDays)", color: .orange)
-                    }
-                    .padding()
-                }
+            VStack(spacing: 0) {
+                // カスタムタイトルバー
+                TitleBarView()
+                    .background(Color(.systemBackground))
+                    .shadow(radius: 1)
                 
-                // 行動ログ一覧
-                List {
-                    ForEach(actionLogs) { log in
-                        ActionLogRow(log: log)
-                    }
-                    .onDelete(perform: deleteActionLogs)
-                }
-                
-                // 入力欄（下部固定風）
+                // メインコンテンツ
                 VStack {
-                    HStack {
-                        Picker("ログタイプ", selection: $selectedLogType) {
-                            ForEach(LogType.allCases, id: \.self) { type in
-                                Text("\(type.emoji) \(type.displayName)")
-                                    .tag(type)
-                            }
+                    // 統計カード（仮実装）
+                    if let stats = calculateStats() {
+                        HStack(spacing: 16) {
+                            StatCard(title: "記録回数", value: "\(stats.totalLogs)", color: .blue)
+                            StatCard(title: "防いだカロリー", value: "\(stats.totalPreventedCalories)", color: .green)
+                            StatCard(title: "継続日数", value: "\(stats.consecutiveDays)", color: .orange)
                         }
-                        .pickerStyle(MenuPickerStyle())
+                        .padding()
                     }
                     
-                    HStack {
-                        TextField("今日の行動を入力...", text: $newLogContent)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        
-                        Button(action: addActionLog) {
-                            Image(systemName: "paperplane.fill")
-                                .foregroundColor(.blue)
+                    // 行動ログ一覧
+                    List {
+                        ForEach(actionLogs) { log in
+                            ActionLogRow(log: log)
                         }
-                        .disabled(newLogContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .onDelete(perform: deleteActionLogs)
                     }
+                    
+                    // 入力欄（下部固定風）
+                    VStack {
+                        HStack {
+                            Picker("ログタイプ", selection: $selectedLogType) {
+                                ForEach(LogType.allCases, id: \.self) { type in
+                                    Text("\(type.emoji) \(type.displayName)")
+                                        .tag(type)
+                                }
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                        }
+                        
+                        HStack {
+                            TextField("今日の行動を入力...", text: $newLogContent)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            Button(action: addActionLog) {
+                                Image(systemName: "paperplane.fill")
+                                    .foregroundColor(.blue)
+                            }
+                            .disabled(newLogContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
                 }
-                .padding()
-                .background(Color(.systemGray6))
             }
-            .navigationTitle("EatLock")
+            .navigationBarHidden(true)
             .onAppear {
                 setupRepository()
             }
