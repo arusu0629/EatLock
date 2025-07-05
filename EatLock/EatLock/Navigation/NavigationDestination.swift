@@ -43,49 +43,47 @@ struct LogDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("記録日時")
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("記録日時")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text(log.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    .font(.headline)
+                
+                Text("記録内容")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text(log.content)
+                    .font(.body)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
+                
+                if let feedback = log.feedback {
+                    Text("AI フィードバック")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    Text(log.timestamp.formatted(date: .abbreviated, time: .shortened))
-                        .font(.headline)
-                    
-                    Text("記録内容")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text(log.content)
+                    Text(feedback)
                         .font(.body)
                         .padding()
-                        .background(Color(.systemGray6))
+                        .background(Color(.systemGreen).opacity(0.1))
                         .cornerRadius(10)
-                    
-                    if let feedback = log.feedback {
-                        Text("AI フィードバック")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text(feedback)
-                            .font(.body)
-                            .padding()
-                            .background(Color(.systemGreen).opacity(0.1))
-                            .cornerRadius(10)
-                    }
                 }
-                
-                Spacer()
             }
-            .padding()
-            .navigationTitle("記録詳細")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") {
-                        dismiss()
-                    }
+            
+            Spacer()
+        }
+        .padding()
+        .navigationTitle("記録詳細")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("閉じる") {
+                    dismiss()
                 }
             }
         }
@@ -97,25 +95,23 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationStack {
-            VStack {
-                Text("設定")
-                    .font(.title)
-                    .padding()
-                
-                Text("将来的な機能拡張の準備として作成されました")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-            }
-            .navigationTitle("設定")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") {
-                        dismiss()
-                    }
+        VStack {
+            Text("設定")
+                .font(.title)
+                .padding()
+            
+            Text("将来的な機能拡張の準備として作成されました")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+        .navigationTitle("設定")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("閉じる") {
+                    dismiss()
                 }
             }
         }
@@ -127,25 +123,23 @@ struct StatisticsView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationStack {
-            VStack {
-                Text("統計")
-                    .font(.title)
-                    .padding()
-                
-                Text("将来的な機能拡張の準備として作成されました")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-            }
-            .navigationTitle("統計")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") {
-                        dismiss()
-                    }
+        VStack {
+            Text("統計")
+                .font(.title)
+                .padding()
+            
+            Text("将来的な機能拡張の準備として作成されました")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+        .navigationTitle("統計")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("閉じる") {
+                    dismiss()
                 }
             }
         }
@@ -157,25 +151,23 @@ struct TutorialView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationStack {
-            VStack {
-                Text("チュートリアル")
-                    .font(.title)
-                    .padding()
-                
-                Text("将来的な機能拡張の準備として作成されました")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-            }
-            .navigationTitle("チュートリアル")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") {
-                        dismiss()
-                    }
+        VStack {
+            Text("チュートリアル")
+                .font(.title)
+                .padding()
+            
+            Text("将来的な機能拡張の準備として作成されました")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+        .navigationTitle("チュートリアル")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("閉じる") {
+                    dismiss()
                 }
             }
         }
