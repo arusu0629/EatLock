@@ -16,6 +16,9 @@ final class ActionLog {
     /// 行動ログのテキスト内容
     var content: String
     
+    /// 暗号化されたコンテンツ（セキュリティ強化用）
+    var encryptedContent: Data?
+    
     /// 記録日時
     var timestamp: Date
     
@@ -97,6 +100,20 @@ final class ActionLog {
     /// 成功ログかどうか
     var isSuccess: Bool {
         logType == .success
+    }
+    
+    /// 暗号化されたコンテンツを復号化してセキュアなコンテンツを取得
+    func getSecureContent(using key: Data) -> String? {
+        guard let encryptedContent = encryptedContent else {
+            return content // 暗号化されていない場合は通常のコンテンツを返す
+        }
+        
+        do {
+            return try DataSecurityManager.shared.decryptData(encryptedContent, using: key)
+        } catch {
+            print("復号化に失敗しました: \(error)")
+            return content // 復号化に失敗した場合は通常のコンテンツを返す
+        }
     }
 }
 
