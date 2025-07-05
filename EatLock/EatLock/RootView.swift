@@ -12,7 +12,7 @@ import SwiftData
 /// NavigationStackを使用して最新のナビゲーション管理を提供
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var router = NavigationRouter.shared
+    private let router = NavigationRouter.shared
     @State private var repository: ActionLogRepository?
     
     var body: some View {

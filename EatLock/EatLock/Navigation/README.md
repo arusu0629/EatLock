@@ -93,9 +93,10 @@ NavigationRouter.shared.showError(error)
 1. **iOS 16以降対応**: NavigationStack を使用するため、iOS 16以降が必要
 2. **型安全性**: NavigationDestination enumを使用して型安全なナビゲーションを実現
 3. **シングルトン**: NavigationRouter.shared を使用して状態を統一管理
-4. **データ一貫性**: すべてのモーダルで同じModelContextを共有し、データの一貫性を保証
-5. **セキュリティ**: ActionLogRepositoryのセキュアメソッドを必ず使用し、直接データアクセスを避ける
-6. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
+4. **状態管理**: シングルトンは`@State`ではなく`private let`で保存し、適切な観測を確保
+5. **データ一貫性**: すべてのモーダルで同じModelContextを共有し、データの一貫性を保証
+6. **セキュリティ**: ActionLogRepositoryのセキュアメソッドを必ず使用し、直接データアクセスを避ける
+7. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
 
 ## アーキテクチャ
 
@@ -117,6 +118,7 @@ RootView
 - **パフォーマンス**: 効率的なナビゲーション管理
 - **データ一貫性**: 環境のModelContextを活用した統一されたデータ管理
 - **セキュリティファースト**: 全てのデータアクセスにActionLogRepositoryのセキュアメソッドを使用
+- **正しい状態管理**: シングルトンオブジェクトの適切な保存と観測
 
 ## データ一貫性の保証
 
@@ -129,6 +131,7 @@ RootView
 - **ナビゲーション競合**: シート内で`NavigationStack`を使用することで発生する競合を解決
 - **レガシーAPI**: 全ての`NavigationView`を除去し、モダンなナビゲーション実装に統一
 - **セキュリティ回帰**: LogDetailViewでセキュアメソッドのバイパスを修正し、適切なデータ保護を実装
+- **状態管理**: NavigationRouter.sharedシングルトンの誤った@State使用を修正し、適切な観測を実現
 
 ### 技術的な実装
 
@@ -192,6 +195,29 @@ struct LogDetailView: View {
 
 **理由**: ActionLogRepositoryのセキュアメソッドは、ユーザーデータの暗号化・復号化、アクセス権限の確認、データの整合性チェックなどの重要なセキュリティ機能を提供します。これらをバイパスすることは重大なセキュリティリスクとなります。
 
+#### 状態管理の修正
+```swift
+// 修正前: シングルトンを誤って@Stateで保存（観測不具合）
+struct ContentView: View {
+    @State private var router = NavigationRouter.shared  // 誤り: ローカルラッパーを作成
+    
+    var body: some View {
+        // NavigationRouterの変更が適切に観測されない
+    }
+}
+
+// 修正後: シングルトンを適切に保存
+struct ContentView: View {
+    private let router = NavigationRouter.shared  // 正解: 直接参照
+    
+    var body: some View {
+        // NavigationRouterの変更が適切に観測される
+    }
+}
+```
+
+**理由**: `@State`はビュー所有のローカル状態用であり、グローバル共有シングルトン用ではありません。`@State`でシングルトンを包むと、ローカルラッパーが作成され、適切な観測ができず、ビュー間で状態の不整合が発生します。
+
 ### レガシーファイルの修正
 
 プロジェクト内の古いファイルも修正されました：
@@ -202,3 +228,11 @@ struct LogDetailView: View {
 ## テスト
 
 各ビューのPreviewを使用して、ナビゲーション機能をテストできます。
+
+### 状態管理の検証
+
+修正後、以下の動作が正しく観測されることを確認できます：
+
+- NavigationRouterの状態変更が全てのビューで即座に反映される
+- モーダル表示・非表示の状態が全ビューで一貫している
+- ナビゲーションパスの変更が適切に観測される

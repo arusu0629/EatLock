@@ -17,7 +17,7 @@ struct ContentView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isRepositoryInitialized = false
-    @State private var router = NavigationRouter.shared
+    private let router = NavigationRouter.shared
     
     init() {
         // 仮の初期化（実際のmodelContextは後でsetupで設定）
