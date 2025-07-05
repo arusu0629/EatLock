@@ -124,8 +124,11 @@ RootView
 - **問題**: 各モーダルが独自の`ModelContainer`を作成し、データの不整合が発生
 - **解決**: 環境の`ModelContext`を使用し、全てのビューで同じデータコンテキストを共有
 - **改善**: `try!`による強制アンラップを除去し、クラッシュリスクを軽減
+- **ナビゲーション競合**: シート内で`NavigationStack`を使用することで発生する競合を解決
 
 ### 技術的な実装
+
+#### データ一貫性の修正
 ```swift
 // 修正前: 各モーダルが独自のModelContainerを作成
 destination.destination(repository: ActionLogRepository(modelContext: ModelContext(try! ModelContainer(for: ActionLog.self))))
@@ -134,6 +137,31 @@ destination.destination(repository: ActionLogRepository(modelContext: ModelConte
 destination.destination(repository: ActionLogRepository(modelContext: modelContext))
     .modelContainer(modelContext.container)
 ```
+
+#### ナビゲーション競合の修正
+```swift
+// 修正前: シート内でNavigationStackを使用（競合発生）
+struct LogDetailView: View {
+    var body: some View {
+        NavigationStack {
+            VStack { /* コンテンツ */ }
+                .navigationTitle("記録詳細")
+        }
+    }
+}
+
+// 修正後: シート内では直接コンテンツを表示
+struct LogDetailView: View {
+    var body: some View {
+        VStack { /* コンテンツ */ }
+            .navigationTitle("記録詳細")
+    }
+}
+```
+
+**理由**: シートとして表示される際、`NavigationRouterWrapper`が提供するNavigationStackが既に存在するため、子ビューで新しいNavigationStackを作成すると競合が発生します。モーダルビューは親のナビゲーションコンテキストを使用します。
+
+**結果**: 各モーダルビューは適切なナビゲーションバーとツールバーを持ちながら、ナビゲーション競合を回避できます。
 
 ## テスト
 
