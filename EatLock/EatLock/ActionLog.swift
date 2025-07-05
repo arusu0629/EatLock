@@ -116,7 +116,8 @@ final class ActionLog {
             return try DataSecurityManager.shared.decryptData(encryptedContent, using: key)
         } catch {
             print("復号化に失敗しました: \(error)")
-            return "復号化に失敗しました" // 復号化に失敗した場合はエラーメッセージを返す
+            // 復号化に失敗した場合はプレーンテキストにフォールバック
+            return content.isEmpty ? "復号化に失敗しました" : content
         }
     }
     
@@ -136,7 +137,8 @@ final class ActionLog {
             return try DataSecurityManager.shared.decryptData(encryptedAIFeedback, using: key)
         } catch {
             print("AIフィードバックの復号化に失敗しました: \(error)")
-            return "復号化に失敗しました"
+            // 復号化に失敗した場合はプレーンテキストにフォールバック
+            return (aiFeedback?.isEmpty != false) ? "復号化に失敗しました" : aiFeedback
         }
     }
     

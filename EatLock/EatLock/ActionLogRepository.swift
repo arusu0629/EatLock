@@ -27,10 +27,12 @@ class ActionLogRepository {
     func createActionLog(content: String, logType: LogType = .other) throws -> ActionLog {
         let actionLog = ActionLog(content: content, logType: logType)
         
-        // コンテンツを暗号化（但し、保存成功まではプレーンテキストをクリアしない）
+        // コンテンツを暗号化して、プレーンテキストをクリア
         do {
             let encryptedContent = try dataSecurityManager.encryptString(content, using: encryptionKey)
             actionLog.encryptedContent = encryptedContent
+            // 暗号化成功後、データベース保存用にプレーンテキストをクリア
+            actionLog.content = ""
         } catch {
             // 暗号化に失敗した場合は、エラーをthrowして作成を中断
             throw ActionLogError.encryptionFailed(error)
@@ -40,8 +42,6 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
-            // 保存成功後にプレーンテキストをクリア
-            actionLog.content = ""
             return actionLog
         } catch {
             modelContext.rollback()
@@ -146,10 +146,12 @@ class ActionLogRepository {
         let originalEncryptedContent = actionLog.encryptedContent
         let originalUpdatedAt = actionLog.updatedAt
         
-        // 先に暗号化を行う
+        // 先に暗号化を行い、プレーンテキストをクリア
         do {
             let encryptedContent = try dataSecurityManager.encryptString(content, using: encryptionKey)
             actionLog.encryptedContent = encryptedContent
+            // 暗号化成功後、データベース保存用にプレーンテキストをクリア
+            actionLog.content = ""
             actionLog.updatedAt = Date()
         } catch {
             // 暗号化に失敗した場合は、エラーをthrowして更新を中断
@@ -158,8 +160,6 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
-            // 保存成功後にプレーンテキストをクリア
-            actionLog.content = ""
         } catch {
             // 保存失敗時は元のデータを復元
             actionLog.content = originalContent
@@ -178,10 +178,12 @@ class ActionLogRepository {
         let originalPreventedCalories = actionLog.preventedCalories
         let originalUpdatedAt = actionLog.updatedAt
         
-        // AIフィードバックを暗号化
+        // AIフィードバックを暗号化してプレーンテキストをクリア
         do {
             let encryptedFeedback = try dataSecurityManager.encryptString(feedback, using: encryptionKey)
             actionLog.encryptedAIFeedback = encryptedFeedback
+            // 暗号化成功後、データベース保存用にプレーンテキストをクリア
+            actionLog.aiFeedback = nil
             actionLog.preventedCalories = preventedCalories
             actionLog.updatedAt = Date()
         } catch {
@@ -190,8 +192,6 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
-            // 保存成功後にプレーンテキストをクリア
-            actionLog.aiFeedback = nil
         } catch {
             // 保存失敗時は元のデータを復元
             actionLog.aiFeedback = originalAIFeedback
