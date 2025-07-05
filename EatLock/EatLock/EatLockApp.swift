@@ -21,7 +21,7 @@ struct EatLockApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                     // アプリがバックグラウンドに移行する際のセキュリティ処理
                     DataSecurityManager.shared.handleAppWillResignActive()
