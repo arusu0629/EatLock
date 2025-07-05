@@ -27,12 +27,10 @@ class ActionLogRepository {
     func createActionLog(content: String, logType: LogType = .other) throws -> ActionLog {
         let actionLog = ActionLog(content: content, logType: logType)
         
-        // コンテンツを暗号化して保存
+        // コンテンツを暗号化（但し、保存成功まではプレーンテキストをクリアしない）
         do {
             let encryptedContent = try dataSecurityManager.encryptString(content, using: encryptionKey)
             actionLog.encryptedContent = encryptedContent
-            // 暗号化成功後、プレーンテキストをクリア
-            actionLog.content = ""
         } catch {
             // 暗号化に失敗した場合は、エラーをthrowして作成を中断
             throw ActionLogError.encryptionFailed(error)
@@ -42,6 +40,8 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 保存成功後にプレーンテキストをクリア
+            actionLog.content = ""
             return actionLog
         } catch {
             modelContext.rollback()
@@ -141,12 +141,15 @@ class ActionLogRepository {
     
     /// 行動ログの内容を更新
     func updateActionLog(_ actionLog: ActionLog, content: String) throws {
+        // 元のデータをバックアップ（保存失敗時の復元用）
+        let originalContent = actionLog.content
+        let originalEncryptedContent = actionLog.encryptedContent
+        let originalUpdatedAt = actionLog.updatedAt
+        
         // 先に暗号化を行う
         do {
             let encryptedContent = try dataSecurityManager.encryptString(content, using: encryptionKey)
             actionLog.encryptedContent = encryptedContent
-            // 暗号化成功後、プレーンテキストをクリア
-            actionLog.content = ""
             actionLog.updatedAt = Date()
         } catch {
             // 暗号化に失敗した場合は、エラーをthrowして更新を中断
@@ -155,7 +158,13 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 保存成功後にプレーンテキストをクリア
+            actionLog.content = ""
         } catch {
+            // 保存失敗時は元のデータを復元
+            actionLog.content = originalContent
+            actionLog.encryptedContent = originalEncryptedContent
+            actionLog.updatedAt = originalUpdatedAt
             modelContext.rollback()
             throw ActionLogError.updateFailed(error)
         }
@@ -163,12 +172,16 @@ class ActionLogRepository {
     
     /// 行動ログにAIフィードバックを設定
     func setAIFeedback(for actionLog: ActionLog, feedback: String, preventedCalories: Int? = nil) throws {
+        // 元のデータをバックアップ（保存失敗時の復元用）
+        let originalAIFeedback = actionLog.aiFeedback
+        let originalEncryptedAIFeedback = actionLog.encryptedAIFeedback
+        let originalPreventedCalories = actionLog.preventedCalories
+        let originalUpdatedAt = actionLog.updatedAt
+        
         // AIフィードバックを暗号化
         do {
             let encryptedFeedback = try dataSecurityManager.encryptString(feedback, using: encryptionKey)
             actionLog.encryptedAIFeedback = encryptedFeedback
-            // 暗号化成功後、プレーンテキストをクリア
-            actionLog.aiFeedback = nil
             actionLog.preventedCalories = preventedCalories
             actionLog.updatedAt = Date()
         } catch {
@@ -177,7 +190,14 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 保存成功後にプレーンテキストをクリア
+            actionLog.aiFeedback = nil
         } catch {
+            // 保存失敗時は元のデータを復元
+            actionLog.aiFeedback = originalAIFeedback
+            actionLog.encryptedAIFeedback = originalEncryptedAIFeedback
+            actionLog.preventedCalories = originalPreventedCalories
+            actionLog.updatedAt = originalUpdatedAt
             modelContext.rollback()
             throw ActionLogError.updateFailed(error)
         }
