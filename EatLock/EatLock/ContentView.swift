@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isRepositoryInitialized = false
+    @State private var showingTutorial = false
     
     init() {
         // 仮の初期化（実際のmodelContextは後でsetupで設定）
@@ -62,11 +63,15 @@ struct ContentView: View {
             .navigationBarHidden(true)
             .onAppear {
                 setupRepository()
+                checkTutorialNeeded()
             }
             .alert("エラー", isPresented: $showingAlert) {
                 Button("OK") { }
             } message: {
                 Text(alertMessage)
+            }
+            .sheet(isPresented: $showingTutorial) {
+                TutorialModal(isPresented: $showingTutorial)
             }
             .disabled(!isRepositoryInitialized)
         }
@@ -115,6 +120,16 @@ struct ContentView: View {
     
     private func calculateStats() -> ActionLogStats? {
         return ActionLog.calculateStats(from: actionLogs)
+    }
+    
+    private func checkTutorialNeeded() {
+        let hasSeenTutorial = UserDefaults.standard.bool(forKey: "HasSeenTutorial")
+        if !hasSeenTutorial {
+            // 少し遅延させてから表示（アプリの初期化完了後）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showingTutorial = true
+            }
+        }
     }
 }
 
