@@ -19,6 +19,9 @@ final class ActionLog {
     /// 暗号化されたコンテンツ（セキュリティ強化用）
     var encryptedContent: Data?
     
+    /// 暗号化されたAIフィードバック（セキュリティ強化用）
+    var encryptedAIFeedback: Data?
+    
     /// 記録日時
     var timestamp: Date
     
@@ -86,10 +89,11 @@ final class ActionLog {
     
     /// 短縮表示用のコンテンツ
     var shortContent: String {
-        if content.count > 30 {
-            return String(content.prefix(30)) + "..."
+        let contentText = secureContent
+        if contentText.count > 30 {
+            return String(contentText.prefix(30)) + "..."
         }
-        return content
+        return contentText
     }
     
     /// 今日のログかどうか
@@ -112,8 +116,34 @@ final class ActionLog {
             return try DataSecurityManager.shared.decryptData(encryptedContent, using: key)
         } catch {
             print("復号化に失敗しました: \(error)")
-            return content // 復号化に失敗した場合は通常のコンテンツを返す
+            return "復号化に失敗しました" // 復号化に失敗した場合はエラーメッセージを返す
         }
+    }
+    
+    /// 暗号化キーを使用してコンテンツを取得するコンピューテッドプロパティ
+    var secureContent: String {
+        let key = DataSecurityManager.shared.getDeviceEncryptionKey()
+        return getSecureContent(using: key) ?? content
+    }
+    
+    /// 暗号化されたAIフィードバックを復号化して取得
+    func getSecureAIFeedback(using key: Data) -> String? {
+        guard let encryptedAIFeedback = encryptedAIFeedback else {
+            return aiFeedback // 暗号化されていない場合は通常のフィードバックを返す
+        }
+        
+        do {
+            return try DataSecurityManager.shared.decryptData(encryptedAIFeedback, using: key)
+        } catch {
+            print("AIフィードバックの復号化に失敗しました: \(error)")
+            return "復号化に失敗しました"
+        }
+    }
+    
+    /// 暗号化キーを使用してAIフィードバックを取得するコンピューテッドプロパティ
+    var secureAIFeedback: String? {
+        let key = DataSecurityManager.shared.getDeviceEncryptionKey()
+        return getSecureAIFeedback(using: key)
     }
 }
 

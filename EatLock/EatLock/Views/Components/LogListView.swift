@@ -54,10 +54,10 @@ struct ActionLogRow: View {
                 }
             }
             
-            Text(log.content)
+            Text(log.secureContent)
                 .font(.body)
             
-            if let feedback = log.aiFeedback {
+            if let feedback = log.secureAIFeedback {
                 Text(feedback)
                     .font(.caption)
                     .foregroundColor(.blue)

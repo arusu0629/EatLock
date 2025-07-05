@@ -31,9 +31,11 @@ class ActionLogRepository {
         do {
             let encryptedContent = try dataSecurityManager.encryptString(content, using: encryptionKey)
             actionLog.encryptedContent = encryptedContent
+            // 暗号化成功後、プレーンテキストをクリア
+            actionLog.content = ""
         } catch {
-            // 暗号化に失敗した場合でも、プレーンテキストで保存は継続
-            print("暗号化に失敗しました: \(error)")
+            // 暗号化に失敗した場合は、エラーをthrowして作成を中断
+            throw ActionLogError.encryptionFailed(error)
         }
         
         modelContext.insert(actionLog)
@@ -139,15 +141,16 @@ class ActionLogRepository {
     
     /// 行動ログの内容を更新
     func updateActionLog(_ actionLog: ActionLog, content: String) throws {
-        actionLog.updateContent(content)
-        
-        // コンテンツを暗号化して更新
+        // 先に暗号化を行う
         do {
             let encryptedContent = try dataSecurityManager.encryptString(content, using: encryptionKey)
             actionLog.encryptedContent = encryptedContent
+            // 暗号化成功後、プレーンテキストをクリア
+            actionLog.content = ""
+            actionLog.updatedAt = Date()
         } catch {
-            // 暗号化に失敗した場合でも、プレーンテキストで更新は継続
-            print("暗号化に失敗しました: \(error)")
+            // 暗号化に失敗した場合は、エラーをthrowして更新を中断
+            throw ActionLogError.encryptionFailed(error)
         }
         
         do {
@@ -160,7 +163,17 @@ class ActionLogRepository {
     
     /// 行動ログにAIフィードバックを設定
     func setAIFeedback(for actionLog: ActionLog, feedback: String, preventedCalories: Int? = nil) throws {
-        actionLog.setAIFeedback(feedback, preventedCalories: preventedCalories)
+        // AIフィードバックを暗号化
+        do {
+            let encryptedFeedback = try dataSecurityManager.encryptString(feedback, using: encryptionKey)
+            actionLog.encryptedAIFeedback = encryptedFeedback
+            // 暗号化成功後、プレーンテキストをクリア
+            actionLog.aiFeedback = nil
+            actionLog.preventedCalories = preventedCalories
+            actionLog.updatedAt = Date()
+        } catch {
+            throw ActionLogError.encryptionFailed(error)
+        }
         
         do {
             try modelContext.save()
@@ -279,6 +292,7 @@ enum ActionLogError: LocalizedError {
     case updateFailed(Error)
     case deleteFailed(Error)
     case statisticsCalculationFailed(Error)
+    case encryptionFailed(Error)
     case notFound
     
     var errorDescription: String? {
@@ -293,6 +307,8 @@ enum ActionLogError: LocalizedError {
             return "行動ログの削除に失敗しました: \(error.localizedDescription)"
         case .statisticsCalculationFailed(let error):
             return "統計情報の計算に失敗しました: \(error.localizedDescription)"
+        case .encryptionFailed(let error):
+            return "データの暗号化に失敗しました: \(error.localizedDescription)"
         case .notFound:
             return "指定された行動ログが見つかりません"
         }
