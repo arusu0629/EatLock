@@ -88,6 +88,7 @@ final class ActionLog {
     }
     
     /// 短縮表示用のコンテンツ
+    /// 注意: パフォーマンス問題のため、Repository経由での取得を推奨
     var shortContent: String {
         let contentText = secureContent
         if contentText.count > 30 {
@@ -122,9 +123,14 @@ final class ActionLog {
     }
     
     /// 暗号化キーを使用してコンテンツを取得するコンピューテッドプロパティ
+    /// 注意: パフォーマンス問題のため、Repository経由での取得を推奨
     var secureContent: String {
-        let key = DataSecurityManager.shared.getDeviceEncryptionKey()
-        return getSecureContent(using: key) ?? content
+        // レガシーサポート: 直接アクセス時のフォールバック
+        if let encryptedContent = encryptedContent {
+            // 暗号化データがある場合は、データアクセス問題を防ぐため復号化を試行しない
+            return "暗号化データ（Repository経由でアクセスしてください）"
+        }
+        return content // 暗号化されていない古いデータのみ表示
     }
     
     /// 暗号化されたAIフィードバックを復号化して取得
@@ -143,9 +149,14 @@ final class ActionLog {
     }
     
     /// 暗号化キーを使用してAIフィードバックを取得するコンピューテッドプロパティ
+    /// 注意: パフォーマンス問題のため、Repository経由での取得を推奨
     var secureAIFeedback: String? {
-        let key = DataSecurityManager.shared.getDeviceEncryptionKey()
-        return getSecureAIFeedback(using: key)
+        // レガシーサポート: 直接アクセス時のフォールバック
+        if let encryptedAIFeedback = encryptedAIFeedback {
+            // 暗号化データがある場合は、データアクセス問題を防ぐため復号化を試行しない
+            return "暗号化データ（Repository経由でアクセスしてください）"
+        }
+        return aiFeedback // 暗号化されていない古いデータのみ表示
     }
 }
 

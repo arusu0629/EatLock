@@ -9,6 +9,7 @@ import SwiftUI
 
 struct LogDetailModal: View {
     let actionLog: ActionLog
+    let repository: ActionLogRepository
     @Binding var isPresented: Bool
     
     var body: some View {
@@ -37,7 +38,7 @@ struct LogDetailModal: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("記録内容")
                             .font(.headline)
-                        Text(actionLog.secureContent)
+                        Text(repository.getSecureContent(for: actionLog))
                             .font(.body)
                             .padding()
                             .background(Color(.systemGray6))
@@ -45,7 +46,7 @@ struct LogDetailModal: View {
                     }
                     
                     // AIフィードバック
-                    if let feedback = actionLog.secureAIFeedback {
+                    if let feedback = repository.getSecureAIFeedback(for: actionLog) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("AIフィードバック")
                                 .font(.headline)
@@ -121,8 +122,14 @@ struct LogDetailModal: View {
     sampleLog.addEmotionTag("達成感")
     sampleLog.addEmotionTag("安心")
     
+    // プレビュー用の仮のRepository
+    let container = try! ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let context = ModelContext(container)
+    let repository = ActionLogRepository(modelContext: context)
+    
     return LogDetailModal(
         actionLog: sampleLog,
+        repository: repository,
         isPresented: .constant(true)
     )
 }

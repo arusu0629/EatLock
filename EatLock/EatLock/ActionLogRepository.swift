@@ -295,8 +295,40 @@ class ActionLogRepository {
     // MARK: - Encryption Support
     
     /// 暗号化されたコンテンツを安全に取得
-    func getSecureContent(for actionLog: ActionLog) -> String? {
-        return actionLog.getSecureContent(using: encryptionKey)
+    func getSecureContent(for actionLog: ActionLog) -> String {
+        return actionLog.getSecureContent(using: encryptionKey) ?? actionLog.content
+    }
+    
+    /// 暗号化されたAIフィードバックを安全に取得
+    func getSecureAIFeedback(for actionLog: ActionLog) -> String? {
+        return actionLog.getSecureAIFeedback(using: encryptionKey)
+    }
+    
+    /// 短縮表示用の安全なコンテンツを取得
+    func getShortSecureContent(for actionLog: ActionLog) -> String {
+        let contentText = getSecureContent(for: actionLog)
+        if contentText.count > 30 {
+            return String(contentText.prefix(30)) + "..."
+        }
+        return contentText
+    }
+    
+    /// 複数のActionLogに対して効率的にセキュアコンテンツを取得
+    func getSecureContents(for actionLogs: [ActionLog]) -> [ActionLog: String] {
+        var results: [ActionLog: String] = [:]
+        for actionLog in actionLogs {
+            results[actionLog] = getSecureContent(for: actionLog)
+        }
+        return results
+    }
+    
+    /// 複数のActionLogに対して効率的にセキュアAIフィードバックを取得
+    func getSecureAIFeedbacks(for actionLogs: [ActionLog]) -> [ActionLog: String?] {
+        var results: [ActionLog: String?] = [:]
+        for actionLog in actionLogs {
+            results[actionLog] = getSecureAIFeedback(for: actionLog)
+        }
+        return results
     }
     
     /// 暗号化キーを取得（デバッグ用）
