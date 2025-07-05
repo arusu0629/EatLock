@@ -11,24 +11,17 @@ struct LogListView: View {
     let actionLogs: [ActionLog]
     let repository: ActionLogRepository
     let onDelete: (IndexSet) -> Void
-    @State private var selectedLog: ActionLog?
-    @State private var showingDetailModal = false
+    @State private var router = NavigationRouter.shared
     
     var body: some View {
         List {
             ForEach(actionLogs) { log in
                 ActionLogRow(log: log, repository: repository)
                     .onTapGesture {
-                        selectedLog = log
-                        showingDetailModal = true
+                        router.presentSheet(.logDetail(log))
                     }
             }
             .onDelete(perform: onDelete)
-        }
-        .sheet(isPresented: $showingDetailModal) {
-            if let selectedLog = selectedLog {
-                LogDetailModal(actionLog: selectedLog, repository: repository, isPresented: $showingDetailModal)
-            }
         }
     }
 }
