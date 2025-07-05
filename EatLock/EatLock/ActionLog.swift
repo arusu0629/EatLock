@@ -16,6 +16,12 @@ final class ActionLog {
     /// 行動ログのテキスト内容
     var content: String
     
+    /// 暗号化されたコンテンツ（セキュリティ強化用）
+    var encryptedContent: Data?
+    
+    /// 暗号化されたAIフィードバック（セキュリティ強化用）
+    var encryptedAIFeedback: Data?
+    
     /// 記録日時
     var timestamp: Date
     
@@ -82,11 +88,13 @@ final class ActionLog {
     }
     
     /// 短縮表示用のコンテンツ
+    /// 注意: パフォーマンス問題のため、Repository経由での取得を推奨
     var shortContent: String {
-        if content.count > 30 {
-            return String(content.prefix(30)) + "..."
+        let contentText = secureContent
+        if contentText.count > 30 {
+            return String(contentText.prefix(30)) + "..."
         }
-        return content
+        return contentText
     }
     
     /// 今日のログかどうか
@@ -97,6 +105,58 @@ final class ActionLog {
     /// 成功ログかどうか
     var isSuccess: Bool {
         logType == .success
+    }
+    
+    /// 暗号化されたコンテンツを復号化してセキュアなコンテンツを取得
+    func getSecureContent(using key: Data) -> String? {
+        guard let encryptedContent = encryptedContent else {
+            return content // 暗号化されていない場合は通常のコンテンツを返す
+        }
+        
+        do {
+            return try DataSecurityManager.shared.decryptData(encryptedContent, using: key)
+        } catch {
+            print("復号化に失敗しました: \(error)")
+            // 復号化に失敗した場合はプレーンテキストにフォールバック
+            return content.isEmpty ? "復号化に失敗しました" : content
+        }
+    }
+    
+    /// 暗号化キーを使用してコンテンツを取得するコンピューテッドプロパティ
+    /// 注意: パフォーマンス問題のため、Repository経由での取得を推奨
+    var secureContent: String {
+        // レガシーサポート: 直接アクセス時のフォールバック
+        if let encryptedContent = encryptedContent {
+            // 暗号化データがある場合は、データアクセス問題を防ぐため復号化を試行しない
+            return "暗号化データ（Repository経由でアクセスしてください）"
+        }
+        return content // 暗号化されていない古いデータのみ表示
+    }
+    
+    /// 暗号化されたAIフィードバックを復号化して取得
+    func getSecureAIFeedback(using key: Data) -> String? {
+        guard let encryptedAIFeedback = encryptedAIFeedback else {
+            return aiFeedback // 暗号化されていない場合は通常のフィードバックを返す
+        }
+        
+        do {
+            return try DataSecurityManager.shared.decryptData(encryptedAIFeedback, using: key)
+        } catch {
+            print("AIフィードバックの復号化に失敗しました: \(error)")
+            // 復号化に失敗した場合はプレーンテキストにフォールバック
+            return (aiFeedback?.isEmpty != false) ? "復号化に失敗しました" : aiFeedback
+        }
+    }
+    
+    /// 暗号化キーを使用してAIフィードバックを取得するコンピューテッドプロパティ
+    /// 注意: パフォーマンス問題のため、Repository経由での取得を推奨
+    var secureAIFeedback: String? {
+        // レガシーサポート: 直接アクセス時のフォールバック
+        if let encryptedAIFeedback = encryptedAIFeedback {
+            // 暗号化データがある場合は、データアクセス問題を防ぐため復号化を試行しない
+            return "暗号化データ（Repository経由でアクセスしてください）"
+        }
+        return aiFeedback // 暗号化されていない古いデータのみ表示
     }
 }
 

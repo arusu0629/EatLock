@@ -9,14 +9,26 @@ import SwiftUI
 
 struct LogListView: View {
     let actionLogs: [ActionLog]
+    let repository: ActionLogRepository
     let onDelete: (IndexSet) -> Void
+    @State private var selectedLog: ActionLog?
+    @State private var showingDetailModal = false
     
     var body: some View {
         List {
             ForEach(actionLogs) { log in
-                ActionLogRow(log: log)
+                ActionLogRow(log: log, repository: repository)
+                    .onTapGesture {
+                        selectedLog = log
+                        showingDetailModal = true
+                    }
             }
             .onDelete(perform: onDelete)
+        }
+        .sheet(isPresented: $showingDetailModal) {
+            if let selectedLog = selectedLog {
+                LogDetailModal(actionLog: selectedLog, repository: repository, isPresented: $showingDetailModal)
+            }
         }
     }
 }
@@ -24,6 +36,7 @@ struct LogListView: View {
 // MARK: - ActionLogRow Component
 struct ActionLogRow: View {
     let log: ActionLog
+    let repository: ActionLogRepository
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -43,10 +56,10 @@ struct ActionLogRow: View {
                 }
             }
             
-            Text(log.content)
+            Text(repository.getSecureContent(for: log))
                 .font(.body)
             
-            if let feedback = log.aiFeedback {
+            if let feedback = repository.getSecureAIFeedback(for: log) {
                 Text(feedback)
                     .font(.caption)
                     .foregroundColor(.blue)
@@ -54,6 +67,7 @@ struct ActionLogRow: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle()) // タップ領域を全体に拡張
     }
 }
 
@@ -69,8 +83,14 @@ struct ActionLogRow: View {
     sampleLogs[1].setAIFeedback("大丈夫です。次回は必ず成功しましょう！")
     sampleLogs[2].setAIFeedback("その気持ちはよく分かります。深呼吸をしてみましょう。")
     
+    // プレビュー用の仮のRepository
+    let container = try! ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let context = ModelContext(container)
+    let repository = ActionLogRepository(modelContext: context)
+    
     return LogListView(
         actionLogs: sampleLogs,
+        repository: repository,
         onDelete: { _ in
             print("Delete action triggered")
         }
