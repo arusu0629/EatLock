@@ -37,7 +37,7 @@ struct LogDetailModal: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("記録内容")
                             .font(.headline)
-                        Text(actionLog.content)
+                        Text(actionLog.secureContent)
                             .font(.body)
                             .padding()
                             .background(Color(.systemGray6))
@@ -45,7 +45,7 @@ struct LogDetailModal: View {
                     }
                     
                     // AIフィードバック
-                    if let feedback = actionLog.aiFeedback {
+                    if let feedback = actionLog.secureAIFeedback {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("AIフィードバック")
                                 .font(.headline)
