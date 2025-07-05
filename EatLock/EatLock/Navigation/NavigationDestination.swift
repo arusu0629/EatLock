@@ -1,21 +1,49 @@
 //
-//  LogDetailModal.swift
+//  NavigationDestination.swift
 //  EatLock
 //
-//  Created by AI Assistant on 2025/07/03.
-//
-//  ⚠️ DEPRECATED: This file is no longer used in the current navigation system.
-//  Consider removing this file in a future update.
-//  Use LogDetailView in NavigationDestination.swift instead.
+//  Created by NavigationSystem on 2025/06/25.
 //
 
 import SwiftUI
+import SwiftData
 
-@available(*, deprecated, message: "Use LogDetailView in NavigationDestination.swift instead")
-struct LogDetailModal: View {
-    let actionLog: ActionLog
+/// ナビゲーション先を定義するenum
+/// 型安全なナビゲーション管理を提供
+enum NavigationDestination: Hashable {
+    case home
+    case logDetail(ActionLog)
+    case settings
+    case statistics
+    case tutorial
+}
+
+/// NavigationDestinationのビュー生成拡張
+extension NavigationDestination {
+    @ViewBuilder
+    func destination(repository: ActionLogRepository) -> some View {
+        switch self {
+        case .home:
+            ContentView()
+        case .logDetail(let log):
+            LogDetailView(log: log, repository: repository)
+        case .settings:
+            SettingsView()
+        case .statistics:
+            StatisticsView()
+        case .tutorial:
+            TutorialView()
+        }
+    }
+}
+
+/// セキュアなログ詳細ビュー
+/// ActionLogRepositoryのセキュアメソッドを使用してユーザーデータを保護
+/// ActionLogRowと一貫した日付フォーマット（log.formattedDate）を使用
+struct LogDetailView: View {
+    let log: ActionLog
     let repository: ActionLogRepository
-    @Binding var isPresented: Bool
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         ScrollView {
@@ -23,15 +51,15 @@ struct LogDetailModal: View {
                 // ヘッダー情報
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(actionLog.logType.emoji)
+                        Text(log.logType.emoji)
                             .font(.largeTitle)
-                        Text(actionLog.logType.displayName)
+                        Text(log.logType.displayName)
                             .font(.title2)
                             .bold()
                         Spacer()
                     }
                     
-                    Text(actionLog.formattedDate)
+                    Text(log.formattedDate)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -42,7 +70,7 @@ struct LogDetailModal: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("記録内容")
                         .font(.headline)
-                    Text(repository.getSecureContent(for: actionLog))
+                    Text(repository.getSecureContent(for: log))
                         .font(.body)
                         .padding()
                         .background(Color(.systemGray6))
@@ -50,7 +78,7 @@ struct LogDetailModal: View {
                 }
                 
                 // AIフィードバック
-                if let feedback = repository.getSecureAIFeedback(for: actionLog) {
+                if let feedback = repository.getSecureAIFeedback(for: log) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("AIフィードバック")
                             .font(.headline)
@@ -63,7 +91,7 @@ struct LogDetailModal: View {
                 }
                 
                 // 防いだカロリー
-                if let calories = actionLog.preventedCalories {
+                if let calories = log.preventedCalories {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("防いだカロリー")
                             .font(.headline)
@@ -82,13 +110,13 @@ struct LogDetailModal: View {
                 }
                 
                 // 感情タグ
-                if !actionLog.emotionTags.isEmpty {
+                if !log.emotionTags.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("感情タグ")
                             .font(.headline)
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(actionLog.emotionTags, id: \.self) { tag in
+                                ForEach(log.emotionTags, id: \.self) { tag in
                                     Text(tag)
                                         .font(.caption)
                                         .padding(.horizontal, 12)
@@ -107,19 +135,19 @@ struct LogDetailModal: View {
             }
             .padding()
         }
-        .navigationTitle("ログ詳細")
+        .navigationTitle("記録詳細")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("閉じる") {
-                    isPresented = false
+                    dismiss()
                 }
             }
         }
     }
 }
 
-#Preview {
+#Preview("LogDetailView") {
     let sampleLog = ActionLog(content: "夜中にアイスクリームを食べたくなったが、水を飲んで我慢した", logType: .success)
     sampleLog.setAIFeedback("素晴らしい自制心です！水を飲むのは良い対策ですね。次回も同じ方法でトライしてみてください。", preventedCalories: 200)
     sampleLog.addEmotionTag("達成感")
@@ -130,9 +158,90 @@ struct LogDetailModal: View {
     let context = ModelContext(container)
     let repository = ActionLogRepository(modelContext: context)
     
-    return LogDetailModal(
-        actionLog: sampleLog,
-        repository: repository,
-        isPresented: .constant(true)
-    )
+    return LogDetailView(log: sampleLog, repository: repository)
+        .modelContainer(container)
+}
+
+/// 設定画面（将来的な拡張用）
+struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack {
+            Text("設定")
+                .font(.title)
+                .padding()
+            
+            Text("将来的な機能拡張の準備として作成されました")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+        .navigationTitle("設定")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("閉じる") {
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+/// 統計画面（将来的な拡張用）
+struct StatisticsView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack {
+            Text("統計")
+                .font(.title)
+                .padding()
+            
+            Text("将来的な機能拡張の準備として作成されました")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+        .navigationTitle("統計")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("閉じる") {
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+/// チュートリアル画面（将来的な拡張用）
+struct TutorialView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack {
+            Text("チュートリアル")
+                .font(.title)
+                .padding()
+            
+            Text("将来的な機能拡張の準備として作成されました")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+        .navigationTitle("チュートリアル")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("閉じる") {
+                    dismiss()
+                }
+            }
+        }
+    }
 }

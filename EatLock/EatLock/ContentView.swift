@@ -17,7 +17,7 @@ struct ContentView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isRepositoryInitialized = false
-    @State private var showingTutorial = false
+    private let router = NavigationRouter.shared
     
     init() {
         // 仮の初期化（実際のmodelContextは後でsetupで設定）
@@ -34,48 +34,43 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // カスタムタイトルバー
-                TitleBarView()
-                    .background(Color(.systemBackground))
-                    .shadow(radius: 1)
+        VStack(spacing: 0) {
+            // カスタムタイトルバー
+            TitleBarView()
+                .background(Color(.systemBackground))
+                .shadow(radius: 1)
+            
+            // メインコンテンツ
+            VStack {
+                // 統計カード
+                StatsCardView(stats: calculateStats())
                 
-                // メインコンテンツ
-                VStack {
-                    // 統計カード
-                    StatsCardView(stats: calculateStats())
-                    
-                    // 行動ログ一覧
-                    LogListView(
-                        actionLogs: actionLogs,
-                        repository: repository,
-                        onDelete: deleteActionLogs
-                    )
-                    
-                    // 入力欄（下部固定風）
-                    LogInputView(
-                        newLogContent: $newLogContent,
-                        selectedLogType: $selectedLogType,
-                        onSubmit: addActionLog
-                    )
-                }
+                // 行動ログ一覧
+                LogListView(
+                    actionLogs: actionLogs,
+                    repository: repository,
+                    onDelete: deleteActionLogs
+                )
+                
+                // 入力欄（下部固定風）
+                LogInputView(
+                    newLogContent: $newLogContent,
+                    selectedLogType: $selectedLogType,
+                    onSubmit: addActionLog
+                )
             }
-            .navigationBarHidden(true)
-            .onAppear {
-                setupRepository()
-                checkTutorialNeeded()
-            }
-            .alert("エラー", isPresented: $showingAlert) {
-                Button("OK") { }
-            } message: {
-                Text(alertMessage)
-            }
-            .sheet(isPresented: $showingTutorial) {
-                TutorialModal(isPresented: $showingTutorial)
-            }
-            .disabled(!isRepositoryInitialized)
         }
+        .navigationBarHidden(true)
+        .onAppear {
+            setupRepository()
+            checkTutorialNeeded()
+        }
+        .alert("エラー", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+        .disabled(!isRepositoryInitialized)
     }
     
     private func setupRepository() {
@@ -128,7 +123,7 @@ struct ContentView: View {
         if !hasSeenTutorial {
             // 少し遅延させてから表示（アプリの初期化完了後）
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showingTutorial = true
+                router.presentSheet(.tutorial)
             }
         }
     }
