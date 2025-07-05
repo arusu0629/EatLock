@@ -11,7 +11,7 @@ struct LogListView: View {
     let actionLogs: [ActionLog]
     let repository: ActionLogRepository
     let onDelete: (IndexSet) -> Void
-    @State private var router = NavigationRouter.shared
+    private let router = NavigationRouter.shared
     
     var body: some View {
         List {

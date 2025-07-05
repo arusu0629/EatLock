@@ -9,6 +9,9 @@ import SwiftUI
 
 /// ナビゲーション状態を管理するRouter
 /// iOS 16以降のNavigationStackに対応
+/// 
+/// ⚠️ 重要: このシングルトンは`@State`ではなく`private let`で保存してください
+/// 例: `private let router = NavigationRouter.shared`
 @Observable
 class NavigationRouter {
     /// ナビゲーションパス（NavigationStack用）
