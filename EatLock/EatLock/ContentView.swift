@@ -42,49 +42,21 @@ struct ContentView: View {
                 
                 // メインコンテンツ
                 VStack {
-                    // 統計カード（仮実装）
-                    if let stats = calculateStats() {
-                        HStack(spacing: 16) {
-                            StatCard(title: "記録回数", value: "\(stats.totalLogs)", color: .blue)
-                            StatCard(title: "防いだカロリー", value: "\(stats.totalPreventedCalories)", color: .green)
-                            StatCard(title: "継続日数", value: "\(stats.consecutiveDays)", color: .orange)
-                        }
-                        .padding()
-                    }
+                    // 統計カード
+                    StatsCardView(stats: calculateStats())
                     
                     // 行動ログ一覧
-                    List {
-                        ForEach(actionLogs) { log in
-                            ActionLogRow(log: log)
-                        }
-                        .onDelete(perform: deleteActionLogs)
-                    }
+                    LogListView(
+                        actionLogs: actionLogs,
+                        onDelete: deleteActionLogs
+                    )
                     
                     // 入力欄（下部固定風）
-                    VStack {
-                        HStack {
-                            Picker("ログタイプ", selection: $selectedLogType) {
-                                ForEach(LogType.allCases, id: \.self) { type in
-                                    Text("\(type.emoji) \(type.displayName)")
-                                        .tag(type)
-                                }
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                        }
-                        
-                        HStack {
-                            TextField("今日の行動を入力...", text: $newLogContent)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                            
-                            Button(action: addActionLog) {
-                                Image(systemName: "paperplane.fill")
-                                    .foregroundColor(.blue)
-                            }
-                            .disabled(newLogContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
+                    LogInputView(
+                        newLogContent: $newLogContent,
+                        selectedLogType: $selectedLogType,
+                        onSubmit: addActionLog
+                    )
                 }
             }
             .navigationBarHidden(true)
@@ -143,66 +115,6 @@ struct ContentView: View {
     
     private func calculateStats() -> ActionLogStats? {
         return ActionLog.calculateStats(from: actionLogs)
-    }
-}
-
-// MARK: - Supporting Views
-
-struct StatCard: View {
-    let title: String
-    let value: String
-    let color: Color
-    
-    var body: some View {
-        VStack {
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(color)
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .shadow(radius: 2)
-    }
-}
-
-struct ActionLogRow: View {
-    let log: ActionLog
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(log.logType.emoji)
-                Text(log.formattedDate)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-                if let calories = log.preventedCalories {
-                    Text("\(calories) kcal")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.green.opacity(0.2))
-                        .cornerRadius(4)
-                }
-            }
-            
-            Text(log.content)
-                .font(.body)
-            
-            if let feedback = log.aiFeedback {
-                Text(feedback)
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.top, 2)
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
 
