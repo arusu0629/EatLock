@@ -8,6 +8,7 @@
 import Foundation
 import SwiftData
 import LocalAuthentication
+import CryptoKit
 
 /// データセキュリティとプライバシー保護を管理するクラス
 class DataSecurityManager {
@@ -61,34 +62,55 @@ class DataSecurityManager {
     
     // MARK: - Data Encryption (Additional Layer)
     
+    /// 暗号化キーを生成する
+    func generateEncryptionKey() -> Data {
+        let key = SymmetricKey(size: .bits256)
+        return key.withUnsafeBytes { Data($0) }
+    }
+    
+    /// デバイス固有の暗号化キーを取得/生成する
+    func getDeviceEncryptionKey() -> Data {
+        let keyIdentifier = "EatLock_DeviceEncryptionKey"
+        
+        if let existingKey = UserDefaults.standard.data(forKey: keyIdentifier) {
+            return existingKey
+        }
+        
+        let newKey = generateEncryptionKey()
+        UserDefaults.standard.set(newKey, forKey: keyIdentifier)
+        return newKey
+    }
+    
     /// 文字列データの暗号化（追加のセキュリティレイヤー用）
     func encryptString(_ string: String, using key: Data) throws -> Data {
-        // 実装時にはCryptoKitを使用した暗号化を行う
-        // 現在は基本実装のみ
         guard let data = string.data(using: .utf8) else {
             throw DataSecurityError.encodingFailed
         }
         
-        // TODO: CryptoKitを使用した実際の暗号化実装
-        // import CryptoKit
-        // let sealedBox = try AES.GCM.seal(data, using: SymmetricKey(data: key))
-        // return sealedBox.combined
-        
-        return data // 暫定実装
+        do {
+            let symmetricKey = SymmetricKey(data: key)
+            let sealedBox = try AES.GCM.seal(data, using: symmetricKey)
+            return sealedBox.combined ?? Data()
+        } catch {
+            throw DataSecurityError.encryptionFailed
+        }
     }
     
     /// 暗号化されたデータの復号化
     func decryptData(_ encryptedData: Data, using key: Data) throws -> String {
-        // TODO: CryptoKitを使用した実際の復号化実装
-        // import CryptoKit
-        // let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
-        // let decryptedData = try AES.GCM.open(sealedBox, using: SymmetricKey(data: key))
-        
-        guard let string = String(data: encryptedData, encoding: .utf8) else {
-            throw DataSecurityError.decodingFailed
+        do {
+            let symmetricKey = SymmetricKey(data: key)
+            let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
+            let decryptedData = try AES.GCM.open(sealedBox, using: symmetricKey)
+            
+            guard let string = String(data: decryptedData, encoding: .utf8) else {
+                throw DataSecurityError.decodingFailed
+            }
+            
+            return string
+        } catch {
+            throw DataSecurityError.decryptionFailed
         }
-        
-        return string // 暫定実装
     }
     
     // MARK: - Privacy Settings
