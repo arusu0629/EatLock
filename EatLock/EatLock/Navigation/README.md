@@ -96,7 +96,8 @@ NavigationRouter.shared.showError(error)
 4. **状態管理**: シングルトンは`@State`ではなく`private let`で保存し、適切な観測を確保
 5. **データ一貫性**: すべてのモーダルで同じModelContextを共有し、データの一貫性を保証
 6. **セキュリティ**: ActionLogRepositoryのセキュアメソッドを必ず使用し、直接データアクセスを避ける
-7. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
+7. **日付表示**: 全てのビューで`log.formattedDate`を使用し、一貫した日付フォーマットを保持
+8. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
 
 ## アーキテクチャ
 
@@ -119,6 +120,7 @@ RootView
 - **データ一貫性**: 環境のModelContextを活用した統一されたデータ管理
 - **セキュリティファースト**: 全てのデータアクセスにActionLogRepositoryのセキュアメソッドを使用
 - **正しい状態管理**: シングルトンオブジェクトの適切な保存と観測
+- **UI一貫性**: 日付表示などのフォーマットを全ビューで統一
 
 ## データ一貫性の保証
 
@@ -132,6 +134,7 @@ RootView
 - **レガシーAPI**: 全ての`NavigationView`を除去し、モダンなナビゲーション実装に統一
 - **セキュリティ回帰**: LogDetailViewでセキュアメソッドのバイパスを修正し、適切なデータ保護を実装
 - **状態管理**: NavigationRouter.sharedシングルトンの誤った@State使用を修正し、適切な観測を実現
+- **日付フォーマット不整合**: LogDetailViewとActionLogRowで異なる日付フォーマットを統一し、一貫性を確保
 
 ### 技術的な実装
 
@@ -218,6 +221,30 @@ struct ContentView: View {
 
 **理由**: `@State`はビュー所有のローカル状態用であり、グローバル共有シングルトン用ではありません。`@State`でシングルトンを包むと、ローカルラッパーが作成され、適切な観測ができず、ビュー間で状態の不整合が発生します。
 
+#### 日付フォーマットの統一
+```swift
+// 修正前: LogDetailViewで異なる日付フォーマット（不整合）
+struct LogDetailView: View {
+    var body: some View {
+        // システム標準フォーマットを使用（ローカライゼーション・タイムゾーン依存）
+        Text(log.timestamp.formatted(date: .abbreviated, time: .shortened))
+    }
+}
+
+// ActionLogRowでは: カスタムフォーマット「2025/06/25 14:30」
+Text(log.formattedDate)
+
+// 修正後: 一貫したカスタムフォーマット
+struct LogDetailView: View {
+    var body: some View {
+        // ActionLogRowと同じフォーマットを使用
+        Text(log.formattedDate)  // "yyyy/MM/dd HH:mm"
+    }
+}
+```
+
+**理由**: `formattedDate`プロパティはActionLogクラスで定義されたカスタム日付フォーマット（`yyyy/MM/dd HH:mm`）を使用します。これにより、相対時間表示、ローカライゼーション、タイムゾーン調整などの一貫したロジックが適用され、リストビューと詳細ビューで同じ表示形式が保証されます。
+
 ### レガシーファイルの修正
 
 プロジェクト内の古いファイルも修正されました：
@@ -236,3 +263,11 @@ struct ContentView: View {
 - NavigationRouterの状態変更が全てのビューで即座に反映される
 - モーダル表示・非表示の状態が全ビューで一貫している
 - ナビゲーションパスの変更が適切に観測される
+
+### 日付フォーマットの検証
+
+修正後、以下の一貫性が確認できます：
+
+- ActionLogRowとLogDetailViewで同じ日付フォーマット（`yyyy/MM/dd HH:mm`）が使用される
+- 全てのビューで統一された日付表示が提供される
+- カスタムフォーマットロジックが一元管理される
