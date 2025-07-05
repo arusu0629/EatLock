@@ -39,6 +39,7 @@ extension NavigationDestination {
 
 /// セキュアなログ詳細ビュー
 /// ActionLogRepositoryのセキュアメソッドを使用してユーザーデータを保護
+/// ActionLogRowと一貫した日付フォーマット（log.formattedDate）を使用
 struct LogDetailView: View {
     let log: ActionLog
     let repository: ActionLogRepository
@@ -58,7 +59,7 @@ struct LogDetailView: View {
                         Spacer()
                     }
                     
-                    Text(log.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    Text(log.formattedDate)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
