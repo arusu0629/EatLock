@@ -94,7 +94,8 @@ NavigationRouter.shared.showError(error)
 2. **型安全性**: NavigationDestination enumを使用して型安全なナビゲーションを実現
 3. **シングルトン**: NavigationRouter.shared を使用して状態を統一管理
 4. **データ一貫性**: すべてのモーダルで同じModelContextを共有し、データの一貫性を保証
-5. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
+5. **セキュリティ**: ActionLogRepositoryのセキュアメソッドを必ず使用し、直接データアクセスを避ける
+6. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
 
 ## アーキテクチャ
 
@@ -115,6 +116,7 @@ RootView
 - **型安全性**: Swift の型システムを活用した堅牢な実装
 - **パフォーマンス**: 効率的なナビゲーション管理
 - **データ一貫性**: 環境のModelContextを活用した統一されたデータ管理
+- **セキュリティファースト**: 全てのデータアクセスにActionLogRepositoryのセキュアメソッドを使用
 
 ## データ一貫性の保証
 
@@ -126,6 +128,7 @@ RootView
 - **改善**: `try!`による強制アンラップを除去し、クラッシュリスクを軽減
 - **ナビゲーション競合**: シート内で`NavigationStack`を使用することで発生する競合を解決
 - **レガシーAPI**: 全ての`NavigationView`を除去し、モダンなナビゲーション実装に統一
+- **セキュリティ回帰**: LogDetailViewでセキュアメソッドのバイパスを修正し、適切なデータ保護を実装
 
 ### 技術的な実装
 
@@ -163,6 +166,31 @@ struct LogDetailView: View {
 **理由**: シートとして表示される際、`NavigationRouterWrapper`が提供するNavigationStackが既に存在するため、子ビューで新しいNavigationStackを作成すると競合が発生します。モーダルビューは親のナビゲーションコンテキストを使用します。
 
 **結果**: 各モーダルビューは適切なナビゲーションバーとツールバーを持ちながら、ナビゲーション競合を回避できます。
+
+#### セキュリティ回帰の修正
+```swift
+// 修正前: セキュアメソッドをバイパス（セキュリティリスク）
+struct LogDetailView: View {
+    var body: some View {
+        Text(log.content)  // 直接アクセス - 危険
+        if let feedback = log.feedback {  // 直接アクセス - 危険
+            Text(feedback)
+        }
+    }
+}
+
+// 修正後: セキュアメソッドを使用
+struct LogDetailView: View {
+    var body: some View {
+        Text(repository.getSecureContent(for: log))  // セキュアアクセス
+        if let feedback = repository.getSecureAIFeedback(for: log) {  // セキュアアクセス
+            Text(feedback)
+        }
+    }
+}
+```
+
+**理由**: ActionLogRepositoryのセキュアメソッドは、ユーザーデータの暗号化・復号化、アクセス権限の確認、データの整合性チェックなどの重要なセキュリティ機能を提供します。これらをバイパスすることは重大なセキュリティリスクとなります。
 
 ### レガシーファイルの修正
 
