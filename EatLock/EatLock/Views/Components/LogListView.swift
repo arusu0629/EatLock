@@ -10,13 +10,24 @@ import SwiftUI
 struct LogListView: View {
     let actionLogs: [ActionLog]
     let onDelete: (IndexSet) -> Void
+    @State private var selectedLog: ActionLog?
+    @State private var showingDetailModal = false
     
     var body: some View {
         List {
             ForEach(actionLogs) { log in
                 ActionLogRow(log: log)
+                    .onTapGesture {
+                        selectedLog = log
+                        showingDetailModal = true
+                    }
             }
             .onDelete(perform: onDelete)
+        }
+        .sheet(isPresented: $showingDetailModal) {
+            if let selectedLog = selectedLog {
+                LogDetailModal(actionLog: selectedLog, isPresented: $showingDetailModal)
+            }
         }
     }
 }
@@ -54,6 +65,7 @@ struct ActionLogRow: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle()) // タップ領域を全体に拡張
     }
 }
 
