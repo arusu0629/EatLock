@@ -43,7 +43,7 @@ struct LogDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("記録日時")
@@ -97,7 +97,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 Text("設定")
                     .font(.title)
@@ -127,7 +127,7 @@ struct StatisticsView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 Text("統計")
                     .font(.title)
@@ -157,7 +157,7 @@ struct TutorialView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 Text("チュートリアル")
                     .font(.title)

@@ -163,18 +163,31 @@ enum AlertActionStyle {
 extension View {
     /// NavigationRouterを使用してナビゲーション機能を追加
     func withNavigationRouter(_ router: NavigationRouter = NavigationRouter.shared) -> some View {
-        self
+        NavigationRouterWrapper(content: self, router: router)
+    }
+}
+
+/// NavigationRouterの機能を提供するラッパービュー
+private struct NavigationRouterWrapper<Content: View>: View {
+    let content: Content
+    let router: NavigationRouter
+    @Environment(\.modelContext) private var modelContext
+    
+    var body: some View {
+        content
             .sheet(item: Binding(
                 get: { router.presentedSheet },
                 set: { _ in router.dismissSheet() }
             )) { destination in
-                destination.destination(repository: ActionLogRepository(modelContext: ModelContext(try! ModelContainer(for: ActionLog.self))))
+                destination.destination(repository: ActionLogRepository(modelContext: modelContext))
+                    .modelContainer(modelContext.container)
             }
             .fullScreenCover(item: Binding(
                 get: { router.presentedFullScreen },
                 set: { _ in router.dismissFullScreen() }
             )) { destination in
-                destination.destination(repository: ActionLogRepository(modelContext: ModelContext(try! ModelContainer(for: ActionLog.self))))
+                destination.destination(repository: ActionLogRepository(modelContext: modelContext))
+                    .modelContainer(modelContext.container)
             }
             .alert(
                 router.alertInfo?.title ?? "",
