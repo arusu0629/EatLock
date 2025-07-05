@@ -93,7 +93,8 @@ NavigationRouter.shared.showError(error)
 1. **iOS 16以降対応**: NavigationStack を使用するため、iOS 16以降が必要
 2. **型安全性**: NavigationDestination enumを使用して型安全なナビゲーションを実現
 3. **シングルトン**: NavigationRouter.shared を使用して状態を統一管理
-4. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
+4. **データ一貫性**: すべてのモーダルで同じModelContextを共有し、データの一貫性を保証
+5. **リソース管理**: モーダルが閉じられた際の適切なリソース管理
 
 ## アーキテクチャ
 
@@ -113,6 +114,26 @@ RootView
 - **将来的な拡張性**: 追加機能に対応できる柔軟な設計
 - **型安全性**: Swift の型システムを活用した堅牢な実装
 - **パフォーマンス**: 効率的なナビゲーション管理
+- **データ一貫性**: 環境のModelContextを活用した統一されたデータ管理
+
+## データ一貫性の保証
+
+ナビゲーションシステムは、すべてのモーダルビューで同じ`ModelContext`を共有することで、データの一貫性を保証します。
+
+### 修正済みの問題
+- **問題**: 各モーダルが独自の`ModelContainer`を作成し、データの不整合が発生
+- **解決**: 環境の`ModelContext`を使用し、全てのビューで同じデータコンテキストを共有
+- **改善**: `try!`による強制アンラップを除去し、クラッシュリスクを軽減
+
+### 技術的な実装
+```swift
+// 修正前: 各モーダルが独自のModelContainerを作成
+destination.destination(repository: ActionLogRepository(modelContext: ModelContext(try! ModelContainer(for: ActionLog.self))))
+
+// 修正後: 環境のModelContextを使用
+destination.destination(repository: ActionLogRepository(modelContext: modelContext))
+    .modelContainer(modelContext.container)
+```
 
 ## テスト
 
