@@ -128,11 +128,24 @@ class DataSecurityManager {
     }
     
     /// デバイス固有の暗号化キーを取得/生成する
+    /// キャッシュ機能付きでパフォーマンスを向上
+    private var cachedEncryptionKey: Data?
+    private let keyCache = NSLock()
+    
     func getDeviceEncryptionKey() -> Data {
+        keyCache.lock()
+        defer { keyCache.unlock() }
+        
+        // キャッシュされたキーがあれば返す
+        if let cachedKey = cachedEncryptionKey {
+            return cachedKey
+        }
+        
         let keyIdentifier = "EatLock_DeviceEncryptionKey"
         
         // まずKeychainから読み込みを試行
         if let existingKey = loadFromKeychain(forKey: keyIdentifier) {
+            cachedEncryptionKey = existingKey
             return existingKey
         }
         
@@ -144,6 +157,12 @@ class DataSecurityManager {
                 // 移行成功後、UserDefaultsから削除
                 UserDefaults.standard.removeObject(forKey: userDefaultsKey)
                 print("暗号化キーをUserDefaultsからKeychainに移行しました")
+                cachedEncryptionKey = legacyKey
+                return legacyKey
+            } else {
+                // Keychain保存に失敗した場合でも、レガシーキーを使用
+                print("警告: Keychainへの移行に失敗しましたが、レガシーキーを使用します")
+                cachedEncryptionKey = legacyKey
                 return legacyKey
             }
         }
@@ -152,17 +171,29 @@ class DataSecurityManager {
         let newKey = generateEncryptionKey()
         if saveToKeychain(newKey, forKey: keyIdentifier) {
             print("新しい暗号化キーをKeychainに保存しました")
+            cachedEncryptionKey = newKey
             return newKey
         } else {
             // Keychainへの保存に失敗した場合の緊急フォールバック
             print("警告: Keychainへの保存に失敗しました。一時的なキーを使用します。")
+            // 一時的なキーはキャッシュしない（次回取得時に再試行）
             return newKey
         }
+    }
+    
+    /// キャッシュをクリアする（テスト用）
+    func clearKeyCache() {
+        keyCache.lock()
+        cachedEncryptionKey = nil
+        keyCache.unlock()
     }
     
     /// 暗号化キーを削除する（アプリリセット時などに使用）
     func deleteDeviceEncryptionKey() -> Bool {
         let keyIdentifier = "EatLock_DeviceEncryptionKey"
+        
+        // キャッシュをクリア
+        clearKeyCache()
         
         // Keychainから削除
         let keychainDeleted = deleteFromKeychain(forKey: keyIdentifier)

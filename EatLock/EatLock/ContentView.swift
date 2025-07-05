@@ -49,6 +49,7 @@ struct ContentView: View {
                     // 行動ログ一覧
                     LogListView(
                         actionLogs: actionLogs,
+                        repository: repository,
                         onDelete: deleteActionLogs
                     )
                     
