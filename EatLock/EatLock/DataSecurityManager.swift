@@ -179,6 +179,11 @@ class DataSecurityManager {
     
     /// 文字列データの暗号化（追加のセキュリティレイヤー用）
     func encryptString(_ string: String, using key: Data) throws -> Data {
+        // 暗号化キーが空または短すぎる場合はエラーを投げる
+        guard !key.isEmpty && key.count >= 32 else {
+            throw DataSecurityError.invalidKeySize
+        }
+        
         guard let data = string.data(using: .utf8) else {
             throw DataSecurityError.encodingFailed
         }
@@ -186,7 +191,13 @@ class DataSecurityManager {
         do {
             let symmetricKey = SymmetricKey(data: key)
             let sealedBox = try AES.GCM.seal(data, using: symmetricKey)
-            return sealedBox.combined ?? Data()
+            
+            // combined プロパティが nil の場合は暗号化失敗として扱う
+            guard let combinedData = sealedBox.combined else {
+                throw DataSecurityError.encryptionFailed
+            }
+            
+            return combinedData
         } catch {
             throw DataSecurityError.encryptionFailed
         }
@@ -194,6 +205,16 @@ class DataSecurityManager {
     
     /// 暗号化されたデータの復号化
     func decryptData(_ encryptedData: Data, using key: Data) throws -> String {
+        // 暗号化キーが空または短すぎる場合はエラーを投げる
+        guard !key.isEmpty && key.count >= 32 else {
+            throw DataSecurityError.invalidKeySize
+        }
+        
+        // 暗号化されたデータが空の場合は即座にエラーを投げる
+        guard !encryptedData.isEmpty else {
+            throw DataSecurityError.emptyData
+        }
+        
         do {
             let symmetricKey = SymmetricKey(data: key)
             let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
@@ -315,6 +336,8 @@ enum DataSecurityError: LocalizedError {
     case keychainSaveFailed
     case keychainLoadFailed
     case keychainDeleteFailed
+    case invalidKeySize
+    case emptyData
     
     var errorDescription: String? {
         switch self {
@@ -332,6 +355,10 @@ enum DataSecurityError: LocalizedError {
             return "Keychainからの読み込みに失敗しました"
         case .keychainDeleteFailed:
             return "Keychainからの削除に失敗しました"
+        case .invalidKeySize:
+            return "暗号化キーのサイズが無効です"
+        case .emptyData:
+            return "暗号化データが空です"
         }
     }
 } 
