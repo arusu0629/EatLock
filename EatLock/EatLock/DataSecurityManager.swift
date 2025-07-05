@@ -9,6 +9,7 @@ import Foundation
 import SwiftData
 import LocalAuthentication
 import CryptoKit
+import Security
 
 /// データセキュリティとプライバシー保護を管理するクラス
 class DataSecurityManager {
@@ -68,17 +69,112 @@ class DataSecurityManager {
         return key.withUnsafeBytes { Data($0) }
     }
     
+    // MARK: - Keychain Operations
+    
+    /// Keychainにデータを保存
+    private func saveToKeychain(_ data: Data, forKey key: String) -> Bool {
+        let service = "com.eatlock.encryption"
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+        
+        // 既存のアイテムを削除
+        SecItemDelete(query as CFDictionary)
+        
+        // 新しいアイテムを追加
+        let status = SecItemAdd(query as CFDictionary, nil)
+        return status == errSecSuccess
+    }
+    
+    /// Keychainからデータを読み込み
+    private func loadFromKeychain(forKey key: String) -> Data? {
+        let service = "com.eatlock.encryption"
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        
+        if status == errSecSuccess {
+            return result as? Data
+        }
+        
+        return nil
+    }
+    
+    /// Keychainからデータを削除
+    private func deleteFromKeychain(forKey key: String) -> Bool {
+        let service = "com.eatlock.encryption"
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key
+        ]
+        
+        let status = SecItemDelete(query as CFDictionary)
+        return status == errSecSuccess
+    }
+    
     /// デバイス固有の暗号化キーを取得/生成する
     func getDeviceEncryptionKey() -> Data {
         let keyIdentifier = "EatLock_DeviceEncryptionKey"
         
-        if let existingKey = UserDefaults.standard.data(forKey: keyIdentifier) {
+        // まずKeychainから読み込みを試行
+        if let existingKey = loadFromKeychain(forKey: keyIdentifier) {
             return existingKey
         }
         
+        // UserDefaultsから既存のキーを移行（後方互換性のため）
+        let userDefaultsKey = "EatLock_DeviceEncryptionKey"
+        if let legacyKey = UserDefaults.standard.data(forKey: userDefaultsKey) {
+            // Keychainに移行
+            if saveToKeychain(legacyKey, forKey: keyIdentifier) {
+                // 移行成功後、UserDefaultsから削除
+                UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+                print("暗号化キーをUserDefaultsからKeychainに移行しました")
+                return legacyKey
+            }
+        }
+        
+        // 新しいキーを生成してKeychainに保存
         let newKey = generateEncryptionKey()
-        UserDefaults.standard.set(newKey, forKey: keyIdentifier)
-        return newKey
+        if saveToKeychain(newKey, forKey: keyIdentifier) {
+            print("新しい暗号化キーをKeychainに保存しました")
+            return newKey
+        } else {
+            // Keychainへの保存に失敗した場合の緊急フォールバック
+            print("警告: Keychainへの保存に失敗しました。一時的なキーを使用します。")
+            return newKey
+        }
+    }
+    
+    /// 暗号化キーを削除する（アプリリセット時などに使用）
+    func deleteDeviceEncryptionKey() -> Bool {
+        let keyIdentifier = "EatLock_DeviceEncryptionKey"
+        
+        // Keychainから削除
+        let keychainDeleted = deleteFromKeychain(forKey: keyIdentifier)
+        
+        // UserDefaultsからも削除（レガシーキーがある場合）
+        let userDefaultsKey = "EatLock_DeviceEncryptionKey"
+        if UserDefaults.standard.data(forKey: userDefaultsKey) != nil {
+            UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+            print("UserDefaultsからレガシーキーを削除しました")
+        }
+        
+        return keychainDeleted
     }
     
     /// 文字列データの暗号化（追加のセキュリティレイヤー用）
@@ -216,6 +312,9 @@ enum DataSecurityError: LocalizedError {
     case decodingFailed
     case encryptionFailed
     case decryptionFailed
+    case keychainSaveFailed
+    case keychainLoadFailed
+    case keychainDeleteFailed
     
     var errorDescription: String? {
         switch self {
@@ -227,6 +326,12 @@ enum DataSecurityError: LocalizedError {
             return "データの暗号化に失敗しました"
         case .decryptionFailed:
             return "データの復号化に失敗しました"
+        case .keychainSaveFailed:
+            return "Keychainへの保存に失敗しました"
+        case .keychainLoadFailed:
+            return "Keychainからの読み込みに失敗しました"
+        case .keychainDeleteFailed:
+            return "Keychainからの削除に失敗しました"
         }
     }
 } 
