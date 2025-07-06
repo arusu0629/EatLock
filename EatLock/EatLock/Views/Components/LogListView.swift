@@ -13,10 +13,54 @@ struct LogListView: View {
     let onDelete: (IndexSet) -> Void
     private let router = NavigationRouter.shared
     
+    // MARK: - Search and Filter States
+    
+    @State private var searchText = ""
+    @State private var selectedLogType: LogType? = nil
+    @State private var selectedDateRange: DateRange = .all
+    @State private var isFilterExpanded = false
+    
+    // MARK: - Computed Properties
+    
+    // 検索・フィルタリング後のログ
+    private var filteredLogs: [ActionLog] {
+        var filtered = actionLogs
+        
+        // テキスト検索
+        if !searchText.isEmpty {
+            filtered = filtered.filter { log in
+                let content = repository.getSecureContent(for: log)
+                let feedback = repository.getSecureAIFeedback(for: log) ?? ""
+                return content.localizedCaseInsensitiveContains(searchText) ||
+                       feedback.localizedCaseInsensitiveContains(searchText) ||
+                       log.emotionTags.joined(separator: " ").localizedCaseInsensitiveContains(searchText)
+            }
+        }
+        
+        // ログタイプフィルタ
+        if let selectedLogType = selectedLogType {
+            filtered = filtered.filter { $0.logType == selectedLogType }
+        }
+        
+        // 日付フィルタ
+        switch selectedDateRange {
+        case .today:
+            filtered = filtered.filter { Calendar.current.isDateInToday($0.timestamp) }
+        case .thisWeek:
+            filtered = filtered.filter { Calendar.current.isDate($0.timestamp, equalTo: Date(), toGranularity: .weekOfYear) }
+        case .thisMonth:
+            filtered = filtered.filter { Calendar.current.isDate($0.timestamp, equalTo: Date(), toGranularity: .month) }
+        case .all:
+            break
+        }
+        
+        return filtered
+    }
+    
     // 日付でグループ化されたログ
     private var groupedLogs: [(date: Date, logs: [ActionLog])] {
         let calendar = Calendar.current
-        let grouped = Dictionary(grouping: actionLogs) { log in
+        let grouped = Dictionary(grouping: filteredLogs) { log in
             calendar.startOfDay(for: log.timestamp)
         }
         
@@ -26,52 +70,179 @@ struct LogListView: View {
     }
     
     var body: some View {
-        if actionLogs.isEmpty {
-            // 空状態の表示
-            VStack(spacing: 16) {
-                Image(systemName: "doc.text")
-                    .font(.system(size: 48))
-                    .foregroundColor(.secondary)
-                
-                Text("まだログがありません")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
-                
-                Text("下の入力欄から行動ログを記録してみましょう")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+        VStack(spacing: 0) {
+            // 検索バー
+            searchBarSection
+            
+            // フィルタセクション
+            if isFilterExpanded {
+                filterSection
             }
-            .padding()
-            .frame(maxWidth: .infinity, minHeight: 200)
-            .accessibilityLabel("行動ログが空です。下の入力欄から記録を開始してください。")
-        } else {
-            List {
-                ForEach(groupedLogs, id: \.date) { group in
-                    Section {
-                        ForEach(group.logs) { log in
-                            ActionLogRow(log: log, repository: repository)
-                                .onTapGesture {
-                                    router.presentSheet(.logDetail(log))
-                                }
-                                .accessibilityLabel(actionLogAccessibilityLabel(for: log))
+            
+            // ログ一覧
+            if filteredLogs.isEmpty {
+                emptyStateView
+            } else {
+                logListView
+            }
+        }
+    }
+    
+    // MARK: - Search Bar Section
+    
+    private var searchBarSection: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                
+                TextField("記録内容、AIフィードバック、感情タグから検索...", text: $searchText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isFilterExpanded.toggle()
+                    }
+                }) {
+                    Image(systemName: isFilterExpanded ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        .foregroundColor(.blue)
+                        .font(.title2)
+                }
+                .accessibilityLabel("フィルタ設定")
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            
+            // 検索結果の概要
+            if !searchText.isEmpty || selectedLogType != nil || selectedDateRange != .all {
+                HStack {
+                    Text("\(filteredLogs.count)件の記録")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    if !searchText.isEmpty || selectedLogType != nil || selectedDateRange != .all {
+                        Button("クリア") {
+                            searchText = ""
+                            selectedLogType = nil
+                            selectedDateRange = .all
                         }
-                        .onDelete { indexSet in
-                            // 特定の日付グループ内での削除に対応
-                            let logsToDelete = indexSet.map { group.logs[$0] }
-                            let globalIndices = IndexSet(logsToDelete.compactMap { logToDelete in
-                                actionLogs.firstIndex(where: { $0.id == logToDelete.id })
-                            })
-                            onDelete(globalIndices)
-                        }
-                    } header: {
-                        DateHeaderView(date: group.date)
+                        .font(.caption)
+                        .foregroundColor(.blue)
                     }
                 }
+                .padding(.horizontal)
+                .padding(.bottom, 4)
             }
-            .listStyle(PlainListStyle())
-            .accessibilityLabel("行動ログ一覧")
         }
+        .background(Color(.systemBackground))
+    }
+    
+    // MARK: - Filter Section
+    
+    private var filterSection: some View {
+        VStack(spacing: 12) {
+            // ログタイプフィルタ
+            VStack(alignment: .leading, spacing: 8) {
+                Text("記録タイプ")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        FilterChip(
+                            title: "すべて",
+                            isSelected: selectedLogType == nil,
+                            action: { selectedLogType = nil }
+                        )
+                        
+                        ForEach(LogType.allCases, id: \.self) { logType in
+                            FilterChip(
+                                title: "\(logType.emoji) \(logType.displayName)",
+                                isSelected: selectedLogType == logType,
+                                action: { selectedLogType = logType }
+                            )
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            
+            // 日付フィルタ
+            VStack(alignment: .leading, spacing: 8) {
+                Text("期間")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(DateRange.allCases, id: \.self) { range in
+                            FilterChip(
+                                title: range.displayName,
+                                isSelected: selectedDateRange == range,
+                                action: { selectedDateRange = range }
+                            )
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+    }
+    
+    // MARK: - Empty State View
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: searchText.isEmpty ? "doc.text" : "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+            
+            Text(searchText.isEmpty ? "まだログがありません" : "検索結果が見つかりません")
+                .font(.title3)
+                .foregroundColor(.secondary)
+            
+            Text(searchText.isEmpty ? "下の入力欄から行動ログを記録してみましょう" : "検索条件を変更して再度お試しください")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, minHeight: 200)
+        .accessibilityLabel(searchText.isEmpty ? "行動ログが空です。下の入力欄から記録を開始してください。" : "検索結果がありません。条件を変更してください。")
+    }
+    
+    // MARK: - Log List View
+    
+    private var logListView: some View {
+        List {
+            ForEach(groupedLogs, id: \.date) { group in
+                Section {
+                    ForEach(group.logs) { log in
+                        ActionLogRow(log: log, repository: repository)
+                            .onTapGesture {
+                                router.presentSheet(.logDetail(log))
+                            }
+                            .accessibilityLabel(actionLogAccessibilityLabel(for: log))
+                    }
+                    .onDelete { indexSet in
+                        // 特定の日付グループ内での削除に対応
+                        let logsToDelete = indexSet.map { group.logs[$0] }
+                        let globalIndices = IndexSet(logsToDelete.compactMap { logToDelete in
+                            actionLogs.firstIndex(where: { $0.id == logToDelete.id })
+                        })
+                        onDelete(globalIndices)
+                    }
+                } header: {
+                    DateHeaderView(date: group.date)
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+        .accessibilityLabel("行動ログ一覧")
     }
     
     // MARK: - Accessibility Helper
@@ -89,6 +260,55 @@ struct LogListView: View {
         }
         
         return label
+    }
+}
+
+// MARK: - Filter Chip Component
+
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color.blue : Color(.systemGray5))
+                )
+                .foregroundColor(isSelected ? .white : .primary)
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? Color.blue : Color(.systemGray4), lineWidth: 1)
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Date Range Enum
+
+enum DateRange: CaseIterable {
+    case all
+    case today
+    case thisWeek
+    case thisMonth
+    
+    var displayName: String {
+        switch self {
+        case .all:
+            return "すべて"
+        case .today:
+            return "今日"
+        case .thisWeek:
+            return "今週"
+        case .thisMonth:
+            return "今月"
+        }
     }
 }
 
@@ -184,6 +404,23 @@ struct ActionLogRow: View {
                         .lineLimit(2)
                         .padding(.top, 2)
                 }
+                
+                // 感情タグ
+                if !log.emotionTags.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(log.emotionTags, id: \.self) { tag in
+                                Text(tag)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.purple.opacity(0.2))
+                                    .foregroundColor(.purple)
+                                    .cornerRadius(4)
+                            }
+                        }
+                    }
+                }
             }
             
             Spacer()
@@ -229,6 +466,14 @@ extension DateFormatter {
     sampleLogs[2].setAIFeedback("その気持ちはよく分かります。深呼吸をしてみましょう。")
     sampleLogs[3].setAIFeedback("朝からとても良いスタートですね！", preventedCalories: 150)
     sampleLogs[4].setAIFeedback("友達との時間も大切です。バランスを取りながら頑張りましょう。")
+    
+    // 感情タグを追加
+    sampleLogs[0].addEmotionTag("達成感")
+    sampleLogs[0].addEmotionTag("安心")
+    sampleLogs[1].addEmotionTag("後悔")
+    sampleLogs[2].addEmotionTag("誘惑")
+    sampleLogs[3].addEmotionTag("満足")
+    sampleLogs[4].addEmotionTag("楽しい")
     
     // プレビュー用の仮のRepository
     let container = try! ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
