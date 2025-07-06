@@ -22,6 +22,26 @@ struct LogInputView: View {
     // 文字数上限
     private let maxCharacters = 500
     
+    // 文字数制限付きのカスタムバインディング
+    private var truncatedTextBinding: Binding<String> {
+        Binding(
+            get: { newLogContent },
+            set: { newValue in
+                if newValue.count > maxCharacters {
+                    // 文字数制限を適用
+                    newLogContent = String(newValue.prefix(maxCharacters))
+                    showCharacterLimitWarning = true
+                } else {
+                    newLogContent = newValue
+                    // 警告を非表示にするのは、制限より十分少ない場合のみ
+                    if newValue.count <= maxCharacters - 10 {
+                        showCharacterLimitWarning = false
+                    }
+                }
+            }
+        )
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 入力欄とボタン
@@ -43,24 +63,11 @@ struct LogInputView: View {
                 // テキスト入力欄と送信ボタン
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        TextField("今日の行動を入力...", text: $newLogContent)
+                        TextField("今日の行動を入力...", text: truncatedTextBinding)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .submitLabel(.send)
                             .onSubmit {
                                 handleSubmit()
-                            }
-                            .onChange(of: newLogContent) { newValue in
-                                // 文字数上限チェック
-                                if newValue.count > maxCharacters {
-                                    // 文字数制限を適用（同期的に実行）
-                                    newLogContent = String(newValue.prefix(maxCharacters))
-                                    showCharacterLimitWarning = true
-                                } else {
-                                    // 警告を非表示にするのは、実際に文字数が制限内の場合のみ
-                                    if showCharacterLimitWarning {
-                                        showCharacterLimitWarning = false
-                                    }
-                                }
                             }
                         
                         // 文字数カウンター
