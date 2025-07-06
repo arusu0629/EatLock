@@ -115,15 +115,20 @@ struct LogInputView: View {
             isPressed = true
         }
         
-        // 少し遅延させてから実際の送信処理
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            onSubmit()
-            
-            // アニメーションを元に戻し、送信状態をリセット
+        // 即座に送信処理を実行
+        onSubmit()
+        
+        // アニメーションを元に戻し、送信状態をリセット
+        // 短い遅延でアニメーション効果を保持
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                 isPressed = false
-                isSubmitting = false
             }
+        }
+        
+        // 送信状態は少し長めに保持して重複送信を防止
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            isSubmitting = false
         }
     }
     
