@@ -206,60 +206,138 @@ final class LocalAIService: AIService {
         let lowerInput = input.lowercased()
         
         // キーワード分析
-        let positiveKeywords = ["我慢", "やめた", "控えた", "断った", "抑えた"]
-        let foodKeywords = ["アイス", "チョコ", "ケーキ", "スナック", "菓子", "デザート", "揚げ物", "ジュース"]
-        let emotionalKeywords = ["ストレス", "イライラ", "落ち込み", "不安"]
+        let positiveKeywords = ["我慢", "やめた", "控えた", "断った", "抑えた", "我慢した", "やめました", "控えました", "断りました", "抑えました"]
+        let timeKeywords = ["深夜", "夜中", "夜遅く", "夜食", "夜更かし", "2時", "3時", "4時", "12時", "1時"]
+        let emotionalKeywords = ["ストレス", "イライラ", "落ち込み", "不安", "疲れ", "憂鬱", "つらい", "辛い"]
+        
+        // 食べ物カテゴリ別キーワードとカロリー
+        let sweetKeywords = ["アイス", "チョコ", "チョコレート", "ケーキ", "クッキー", "クリーム", "甘い", "デザート", "お菓子"]
+        let snackKeywords = ["スナック", "ポテチ", "ポテトチップス", "せんべい", "クラッカー", "ビスケット"]
+        let drinkKeywords = ["ジュース", "炭酸", "コーラ", "ソーダ", "甘い飲み物", "砂糖入り"]
+        let fastFoodKeywords = ["ファストフード", "ハンバーガー", "フライドポテト", "ピザ", "ラーメン", "コンビニ弁当"]
+        let friedFoodKeywords = ["揚げ物", "フライ", "天ぷら", "から揚げ", "唐揚げ", "フライドチキン"]
+        let alcoholKeywords = ["酒", "ビール", "ワイン", "日本酒", "焼酎", "ウイスキー", "お酒", "飲酒"]
         
         let hasPositiveAction = positiveKeywords.contains { lowerInput.contains($0) }
-        let hasFood = foodKeywords.contains { lowerInput.contains($0) }
+        let hasTimeContext = timeKeywords.contains { lowerInput.contains($0) }
         let hasEmotionalTrigger = emotionalKeywords.contains { lowerInput.contains($0) }
         
-        // カロリー推定
+        // カロリー推定（カテゴリ別）
         var preventedCalories = 0
-        if hasFood {
-            switch true {
-            case lowerInput.contains("アイス"):
-                preventedCalories = 250
-            case lowerInput.contains("チョコ"):
-                preventedCalories = 150
-            case lowerInput.contains("ケーキ"):
-                preventedCalories = 400
-            case lowerInput.contains("スナック"):
-                preventedCalories = 200
-            case lowerInput.contains("揚げ物"):
-                preventedCalories = 300
-            case lowerInput.contains("ジュース"):
-                preventedCalories = 120
-            default:
-                preventedCalories = 180
+        var foodCategory = ""
+        
+        if sweetKeywords.contains(where: { lowerInput.contains($0) }) {
+            preventedCalories = 300 // 甘い物の基本カロリー
+            foodCategory = "甘い物"
+            
+            // 具体的な食べ物による調整
+            if lowerInput.contains("アイス") { preventedCalories = 250 }
+            else if lowerInput.contains("チョコ") { preventedCalories = 200 }
+            else if lowerInput.contains("ケーキ") { preventedCalories = 400 }
+            else if lowerInput.contains("クッキー") { preventedCalories = 150 }
+            else if lowerInput.contains("クリーム") { preventedCalories = 350 }
+            
+        } else if snackKeywords.contains(where: { lowerInput.contains($0) }) {
+            preventedCalories = 200 // スナック類の基本カロリー
+            foodCategory = "スナック"
+            
+            if lowerInput.contains("ポテチ") || lowerInput.contains("ポテトチップス") { preventedCalories = 350 }
+            else if lowerInput.contains("せんべい") { preventedCalories = 180 }
+            
+        } else if drinkKeywords.contains(where: { lowerInput.contains($0) }) {
+            preventedCalories = 120 // 甘い飲み物の基本カロリー
+            foodCategory = "甘い飲み物"
+            
+            if lowerInput.contains("コーラ") { preventedCalories = 140 }
+            else if lowerInput.contains("ジュース") { preventedCalories = 100 }
+            
+        } else if fastFoodKeywords.contains(where: { lowerInput.contains($0) }) {
+            preventedCalories = 600 // ファストフードの基本カロリー
+            foodCategory = "ファストフード"
+            
+            if lowerInput.contains("ハンバーガー") { preventedCalories = 500 }
+            else if lowerInput.contains("ピザ") { preventedCalories = 700 }
+            else if lowerInput.contains("ラーメン") { preventedCalories = 550 }
+            else if lowerInput.contains("コンビニ弁当") { preventedCalories = 450 }
+            
+        } else if friedFoodKeywords.contains(where: { lowerInput.contains($0) }) {
+            preventedCalories = 300 // 揚げ物の基本カロリー
+            foodCategory = "揚げ物"
+            
+            if lowerInput.contains("から揚げ") || lowerInput.contains("唐揚げ") { preventedCalories = 250 }
+            else if lowerInput.contains("天ぷら") { preventedCalories = 350 }
+            else if lowerInput.contains("フライドチキン") { preventedCalories = 400 }
+            
+        } else if alcoholKeywords.contains(where: { lowerInput.contains($0) }) {
+            preventedCalories = 150 // アルコールの基本カロリー
+            foodCategory = "アルコール"
+            
+            if lowerInput.contains("ビール") { preventedCalories = 200 }
+            else if lowerInput.contains("ワイン") { preventedCalories = 120 }
+            else if lowerInput.contains("日本酒") { preventedCalories = 180 }
+            
+        } else {
+            // その他の食べ物
+            preventedCalories = 150
+            foodCategory = "その他"
+        }
+        
+        // 深夜食の場合は1.5倍のカロリー
+        if hasTimeContext && preventedCalories > 0 {
+            preventedCalories = Int(Double(preventedCalories) * 1.5)
+            if preventedCalories < 500 {
+                preventedCalories = 500 // 深夜食の最小カロリー
             }
         }
         
         // メッセージとタイプの決定
         if hasPositiveAction {
-            let messages = [
-                "素晴らしい自制心ですね！その調子で頑張りましょう。",
-                "よく我慢できましたね。きっと体も喜んでいるはずです。",
-                "その判断力、とても立派です！継続していきましょう。",
-                "自分をコントロールできる力、すごいですね。"
+            let achievementMessages = [
+                "素晴らしい自制心ですね！\(foodCategory)を我慢できて立派です。",
+                "よく我慢できましたね。\(preventedCalories)kcalも防げて、体も喜んでいるはずです。",
+                "その判断力、とても立派です！\(foodCategory)を控えて健康的な選択をしました。",
+                "自分をコントロールできる力、すごいですね。継続していきましょう。",
+                "我慢できたことは大きな成功です。\(preventedCalories)kcalの節約になりました！"
             ]
-            return (messages.randomElement()!, preventedCalories, .achievement)
+            
+            if hasTimeContext {
+                let lateNightMessages = [
+                    "深夜の誘惑に負けず、素晴らしい自制心です！\(preventedCalories)kcalも防げました。",
+                    "夜遅い時間の\(foodCategory)を我慢できて立派です。良い判断でした。",
+                    "深夜の食事は特に太りやすいので、我慢できたのは大きな成果です。"
+                ]
+                return (lateNightMessages.randomElement()!, preventedCalories, .achievement)
+            }
+            
+            return (achievementMessages.randomElement()!, preventedCalories, .achievement)
+            
         } else if hasEmotionalTrigger {
-            let messages = [
-                "辛い時もありますよね。一歩ずつ、無理せず進んでいきましょう。",
-                "感情的になる時は誰にでもあります。大丈夫ですよ。",
+            let supportMessages = [
+                "辛い時もありますよね。感情に流されず、一歩ずつ進んでいきましょう。",
+                "ストレスを感じている時は誰にでもあります。無理せず、自分に優しくしてくださいね。",
                 "今日は少し休んでも良いかもしれません。明日からまた頑張りましょう。",
-                "気持ちを理解しています。一緒に乗り越えていきましょう。"
+                "気持ちを理解しています。食べることで解決しようとする気持ち、よくわかります。",
+                "感情的になる時は、深呼吸して少し時間を置いてみてください。"
             ]
-            return (messages.randomElement()!, 0, .support)
+            return (supportMessages.randomElement()!, 0, .support)
+            
+        } else if hasTimeContext {
+            let warningMessages = [
+                "深夜の食事は体に負担をかけがちです。できるだけ控えめにしましょう。",
+                "夜遅い時間の\(foodCategory)は特に注意が必要です。明日に備えて休息を取りましょう。",
+                "夜食は睡眠の質にも影響します。水分補給程度にとどめることをお勧めします。"
+            ]
+            return (warningMessages.randomElement()!, 0, .warning)
+            
         } else {
-            let messages = [
-                "今日の行動を記録してくれて、ありがとうございます。",
-                "継続することが大切です。今日もお疲れ様でした。",
-                "小さな一歩も大切な進歩です。",
-                "自分の行動を見つめ直すことは素晴らしいことです。"
+            let encouragementMessages = [
+                "今日の行動を記録してくれて、ありがとうございます。意識することが第一歩です。",
+                "継続することが大切です。小さな気づきも貴重な記録です。",
+                "自分の行動パターンを見つめ直すことは素晴らしいことです。",
+                "記録を続けることで、必ず変化が見えてきます。",
+                "今日も一日お疲れ様でした。明日も無理のない範囲で頑張りましょう。"
             ]
-            return (messages.randomElement()!, preventedCalories, .encouragement)
+            return (encouragementMessages.randomElement()!, preventedCalories, .encouragement)
         }
     }
 }

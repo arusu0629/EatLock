@@ -78,6 +78,28 @@ final class AIManager: ObservableObject {
         }
     }
     
+    /// 行動ログに対するフィードバックをJSON形式で生成
+    /// - Parameter input: ユーザーの入力テキスト
+    /// - Returns: JSON形式のフィードバック結果
+    func generateFeedbackAsJSON(for input: String) async -> Result<String, AIError> {
+        let result = await generateFeedback(for: input)
+        
+        switch result {
+        case .success(let feedback):
+            do {
+                let jsonData = try JSONEncoder().encode(feedback.toJSONResponse())
+                let jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
+                logger.info("Feedback generated as JSON successfully")
+                return .success(jsonString)
+            } catch {
+                logger.error("Failed to encode feedback as JSON: \(error)")
+                return .failure(.unknownError("JSON encoding failed"))
+            }
+        case .failure(let error):
+            return .failure(error)
+        }
+    }
+    
     /// AI機能を再初期化
     func reinitialize() async {
         logger.info("Reinitializing AI")

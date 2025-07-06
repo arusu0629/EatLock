@@ -24,7 +24,7 @@ protocol AIService {
 // MARK: - AIFeedback Model
 
 /// AIフィードバック結果
-struct AIFeedback {
+struct AIFeedback: Codable {
     /// フィードバックメッセージ
     let message: String
     
@@ -37,12 +37,43 @@ struct AIFeedback {
     /// 生成日時
     let generatedAt: Date
     
-    enum FeedbackType {
-        case encouragement  // 励まし
-        case achievement    // 達成
-        case support       // サポート
-        case warning       // 注意
+    enum FeedbackType: String, Codable {
+        case encouragement = "encouragement"  // 励まし
+        case achievement = "achievement"      // 達成
+        case support = "support"             // サポート
+        case warning = "warning"             // 注意
+        
+        var displayName: String {
+            switch self {
+            case .encouragement:
+                return "励まし"
+            case .achievement:
+                return "達成"
+            case .support:
+                return "サポート"
+            case .warning:
+                return "注意"
+            }
+        }
     }
+    
+    /// JSON形式のレスポンスデータを作成
+    func toJSONResponse() -> AIFeedbackJSONResponse {
+        return AIFeedbackJSONResponse(
+            message: message,
+            kcal: preventedCalories,
+            type: type.rawValue,
+            generatedAt: ISO8601DateFormatter().string(from: generatedAt)
+        )
+    }
+}
+
+/// JSON形式のAIフィードバックレスポンス
+struct AIFeedbackJSONResponse: Codable {
+    let message: String
+    let kcal: Int
+    let type: String
+    let generatedAt: String
 }
 
 // MARK: - AIError
