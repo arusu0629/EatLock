@@ -17,6 +17,9 @@ struct ContentView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isRepositoryInitialized = false
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastType: ToastType = .info
     private let router = NavigationRouter.shared
     
     init() {
@@ -85,6 +88,19 @@ struct ContentView: View {
             Text(alertMessage)
         }
         .disabled(!isRepositoryInitialized)
+        .overlay(
+            // Toast表示用のオーバーレイ
+            ZStack {
+                if showToast {
+                    ToastView(
+                        message: toastMessage,
+                        type: toastType,
+                        isPresented: $showToast
+                    )
+                }
+            }
+            .allowsHitTesting(false)
+        )
     }
     
     private func setupRepository() {
@@ -96,9 +112,14 @@ struct ContentView: View {
         let content = newLogContent.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
         
+        // 文字数チェック
+        guard content.count <= 500 else {
+            showToast(message: "文字数が上限（500文字）を超えています", type: .error)
+            return
+        }
+        
         guard isRepositoryInitialized else {
-            alertMessage = "データベースの初期化に失敗しました。アプリを再起動してください。"
-            showingAlert = true
+            showToast(message: "データベースの初期化に失敗しました。アプリを再起動してください。", type: .error)
             return
         }
         
@@ -111,30 +132,40 @@ struct ContentView: View {
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
             
+            // 成功時のToast表示
+            showToast(message: "行動ログを保存しました", type: .success)
+            
         } catch {
-            alertMessage = error.localizedDescription
-            showingAlert = true
+            // エラー時のToast表示
+            showToast(message: error.localizedDescription, type: .error)
         }
     }
     
     private func deleteActionLogs(offsets: IndexSet) {
         guard isRepositoryInitialized else {
-            alertMessage = "データベースの初期化に失敗しました。アプリを再起動してください。"
-            showingAlert = true
+            showToast(message: "データベースの初期化に失敗しました。アプリを再起動してください。", type: .error)
             return
         }
         
         do {
             let logsToDelete = offsets.map { actionLogs[$0] }
             try repository.deleteActionLogs(logsToDelete)
+            showToast(message: "行動ログを削除しました", type: .success)
         } catch {
-            alertMessage = error.localizedDescription
-            showingAlert = true
+            showToast(message: error.localizedDescription, type: .error)
         }
     }
     
     private func calculateStats() -> ActionLogStats? {
         return ActionLog.calculateStats(from: actionLogs)
+    }
+    
+    private func showToast(message: String, type: ToastType) {
+        toastMessage = message
+        toastType = type
+        withAnimation {
+            showToast = true
+        }
     }
     
     private func checkTutorialNeeded() {

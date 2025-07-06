@@ -17,6 +17,10 @@ struct LogInputView: View {
     @State private var keyboardHeight: CGFloat = 0
     @State private var keyboardShowObserver: NSObjectProtocol?
     @State private var keyboardHideObserver: NSObjectProtocol?
+    @State private var showCharacterLimitWarning = false
+    
+    // 文字数上限
+    private let maxCharacters = 500
     
     var body: some View {
         VStack(spacing: 0) {
@@ -38,12 +42,44 @@ struct LogInputView: View {
                 
                 // テキスト入力欄と送信ボタン
                 HStack(spacing: 12) {
-                    TextField("今日の行動を入力...", text: $newLogContent)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .submitLabel(.send)
-                        .onSubmit {
-                            handleSubmit()
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("今日の行動を入力...", text: $newLogContent)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .submitLabel(.send)
+                            .onSubmit {
+                                handleSubmit()
+                            }
+                            .onChange(of: newLogContent) { newValue in
+                                // 文字数上限チェック
+                                if newValue.count > maxCharacters {
+                                    newLogContent = String(newValue.prefix(maxCharacters))
+                                    showCharacterLimitWarning = true
+                                } else {
+                                    showCharacterLimitWarning = false
+                                }
+                            }
+                        
+                        // 文字数カウンター
+                        HStack {
+                            if showCharacterLimitWarning {
+                                Text("文字数上限に達しました")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                            }
+                            
+                            Spacer()
+                            
+                            Text("\(newLogContent.count)/\(maxCharacters)")
+                                .font(.caption)
+                                .foregroundColor(
+                                    newLogContent.count > maxCharacters - 50 ? .orange :
+                                    newLogContent.count > maxCharacters - 100 ? .yellow : .secondary
+                                )
                         }
+                        .padding(.horizontal, 4)
+                        .opacity(newLogContent.isEmpty ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.2), value: newLogContent.isEmpty)
+                    }
                     
                     Button(action: {
                         handleSubmit()
@@ -101,7 +137,10 @@ struct LogInputView: View {
     }
     
     private var isSubmitEnabled: Bool {
-        !newLogContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
+        let trimmedContent = newLogContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmedContent.isEmpty && 
+               trimmedContent.count <= maxCharacters &&
+               !isSubmitting
     }
     
     private func handleSubmit() {
