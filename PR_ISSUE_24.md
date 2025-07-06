@@ -1,0 +1,57 @@
+# Pull Request: [TASK4-2] 行動ログ保存処理と入力バリデーションの実装
+
+## 概要
+Issue #24 の実装: 行動ログ保存処理と入力バリデーションの実装
+
+## 変更内容
+### 新規作成
+- `ToastView.swift`: Toast表示機能の実装（成功/エラー/警告/情報の4種類）
+
+### 修正
+- `LogInputView.swift`: 文字数上限チェック（500文字）と文字数カウンター追加
+- `ActionLogRepository.swift`: バリデーション機能追加（空入力・文字数制限チェック）
+- `ContentView.swift`: Toast表示機能を実装、エラーハンドリング改善
+
+## 技術詳細
+- Toast機能はSwiftUIのオーバーレイを使用して実装
+- 文字数制限は500文字でハードリミットを設定
+- 文字数カウンターは残り文字数に応じて色分け表示
+- バリデーションエラーは新しいActionLogError.validationFailedケースで処理
+
+## 動作確認
+- [x] 有効な入力のみが保存される
+- [x] 文字数上限（500文字）チェック機能
+- [x] 保存成功時に入力欄がクリア
+- [x] 保存失敗時にToastでエラーメッセージ表示
+- [x] 暗号化されたデータベースに格納
+
+## 関連Issue
+Closes #24
+
+## 特記事項
+- Toast表示は3秒間で自動的に消える
+- 文字数カウンターは文字数が多くなるにつれて色が変わる（グレー→黄色→オレンジ→赤）
+- バリデーションはフロントエンドとバックエンドの両方で実装
+
+## 実装完了日時
+2025-07-04
+
+## ブランチ名
+cursor/implement-features-from-issue-24-5891
+
+## コミットメッセージ
+feat: 行動ログ保存処理と入力バリデーションの実装 (#24)
+
+- ToastViewの新規作成
+- LogInputViewに文字数上限チェック（500文字）と文字数カウンター追加
+- ActionLogRepositoryにバリデーション機能追加
+- ContentViewでToast表示機能を実装
+- 保存成功時のToast表示と入力欄クリア機能
+
+fix: ToastView dismissal task memory leak and state inconsistency
+
+- Add @State property to track DispatchWorkItem for dismissal task
+- Cancel existing task in onAppear to prevent duplicate scheduling
+- Add onDisappear to cancel task when view disappears
+- Prevents closure execution after view dismissal
+- Fixes memory leaks and state inconsistencies

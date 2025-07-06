@@ -17,6 +17,9 @@ struct ContentView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isRepositoryInitialized = false
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastType: ToastType = .info
     private let router = NavigationRouter.shared
     
     init() {
@@ -34,33 +37,47 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // カスタムタイトルバー
-            TitleBarView()
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // カスタムタイトルバー
+                TitleBarView()
+                    .background(Color(.systemBackground))
+                    .shadow(radius: 1)
+                    .zIndex(1)
+                
+                // メインコンテンツ
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // 統計カード
+                        StatsCardView(stats: repository.currentStats)
+                        
+                        // 行動ログ一覧
+                        LogListView(
+                            actionLogs: actionLogs,
+                            repository: repository,
+                            onDelete: deleteActionLogs
+                        )
+                        
+                        // 下部の余白（入力欄の分）
+                        Color.clear
+                            .frame(height: 140)
+                    }
+                    .padding(.horizontal)
+                }
+                
+                // 下部固定入力欄
+                VStack(spacing: 0) {
+                    LogInputView(
+                        newLogContent: $newLogContent,
+                        selectedLogType: $selectedLogType,
+                        onSubmit: addActionLog
+                    )
+                }
                 .background(Color(.systemBackground))
-                .shadow(radius: 1)
-            
-            // メインコンテンツ
-            VStack {
-                // 統計カード
-                StatsCardView(stats: calculateStats())
-                
-                // 行動ログ一覧
-                LogListView(
-                    actionLogs: actionLogs,
-                    repository: repository,
-                    onDelete: deleteActionLogs
-                )
-                
-                // 入力欄（下部固定風）
-                LogInputView(
-                    newLogContent: $newLogContent,
-                    selectedLogType: $selectedLogType,
-                    onSubmit: addActionLog
-                )
             }
         }
         .navigationBarHidden(true)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
             setupRepository()
             checkTutorialNeeded()
@@ -71,6 +88,19 @@ struct ContentView: View {
             Text(alertMessage)
         }
         .disabled(!isRepositoryInitialized)
+        .overlay(
+            // Toast表示用のオーバーレイ
+            ZStack {
+                if showToast {
+                    ToastView(
+                        message: toastMessage,
+                        type: toastType,
+                        isPresented: $showToast
+                    )
+                }
+            }
+            .allowsHitTesting(false)
+        )
     }
     
     private func setupRepository() {
@@ -82,9 +112,14 @@ struct ContentView: View {
         let content = newLogContent.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
         
+        // 文字数チェック
+        guard content.count <= 500 else {
+            showToast(message: "文字数が上限（500文字）を超えています", type: .error)
+            return
+        }
+        
         guard isRepositoryInitialized else {
-            alertMessage = "データベースの初期化に失敗しました。アプリを再起動してください。"
-            showingAlert = true
+            showToast(message: "データベースの初期化に失敗しました。アプリを再起動してください。", type: .error)
             return
         }
         
@@ -92,30 +127,47 @@ struct ContentView: View {
             _ = try repository.createActionLog(content: content, logType: selectedLogType)
             newLogContent = ""
             selectedLogType = .other
+            
+            // 入力成功時のハプティックフィードバック
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            
+            // 成功時のToast表示
+            showToast(message: "行動ログを保存しました", type: .success)
+            
         } catch {
-            alertMessage = error.localizedDescription
-            showingAlert = true
+            // エラー時のToast表示
+            showToast(message: error.localizedDescription, type: .error)
         }
     }
     
     private func deleteActionLogs(offsets: IndexSet) {
         guard isRepositoryInitialized else {
-            alertMessage = "データベースの初期化に失敗しました。アプリを再起動してください。"
-            showingAlert = true
+            showToast(message: "データベースの初期化に失敗しました。アプリを再起動してください。", type: .error)
             return
         }
         
         do {
             let logsToDelete = offsets.map { actionLogs[$0] }
             try repository.deleteActionLogs(logsToDelete)
+            showToast(message: "行動ログを削除しました", type: .success)
         } catch {
-            alertMessage = error.localizedDescription
-            showingAlert = true
+            showToast(message: error.localizedDescription, type: .error)
         }
     }
     
     private func calculateStats() -> ActionLogStats? {
-        return ActionLog.calculateStats(from: actionLogs)
+        // 現在は repository.currentStats を使用するため、このメソッドは不要
+        // 後方互換性のために残している
+        return repository.currentStats
+    }
+    
+    private func showToast(message: String, type: ToastType) {
+        toastMessage = message
+        toastType = type
+        withAnimation {
+            showToast = true
+        }
     }
     
     private func checkTutorialNeeded() {

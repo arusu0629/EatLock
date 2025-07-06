@@ -8,25 +8,30 @@
 import SwiftUI
 
 struct StatsCardView: View {
-    let stats: ActionLogStats?
+    let stats: ActionLogStats
     
     var body: some View {
-        if let stats = stats {
-            HStack(spacing: 16) {
-                StatCard(title: "記録回数", value: "\(stats.totalLogs)", color: .blue)
-                StatCard(title: "防いだカロリー", value: "\(stats.totalPreventedCalories)", color: .green)
-                StatCard(title: "継続日数", value: "\(stats.consecutiveDays)", color: .orange)
-            }
-            .padding()
-        } else {
-            // 統計データが利用できない場合のプレースホルダー
-            HStack(spacing: 16) {
-                StatCard(title: "記録回数", value: "0", color: .blue)
-                StatCard(title: "防いだカロリー", value: "0", color: .green)
-                StatCard(title: "継続日数", value: "0", color: .orange)
-            }
-            .padding()
+        HStack(spacing: 16) {
+            StatCard(
+                title: "記録回数",
+                value: "\(stats.totalLogs)",
+                icon: "doc.text.fill",
+                color: .green
+            )
+            StatCard(
+                title: "防いだカロリー",
+                value: "\(stats.totalPreventedCalories)",
+                icon: "flame.fill",
+                color: .green
+            )
+            StatCard(
+                title: "継続日数",
+                value: "\(stats.consecutiveDays)",
+                icon: "calendar.badge.checkmark",
+                color: .green
+            )
         }
+        .padding()
     }
 }
 
@@ -34,28 +39,44 @@ struct StatsCardView: View {
 struct StatCard: View {
     let title: String
     let value: String
+    let icon: String
     let color: Color
     
     var body: some View {
-        VStack {
+        VStack(spacing: 8) {
+            // アイコン
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(color)
+                .accessibilityHidden(true)
+            
+            // 値
             Text(value)
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundColor(color)
+                .foregroundStyle(color)
+            
+            // ラベル
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .shadow(radius: 2)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value)")
+        .accessibilityHint("統計情報")
     }
 }
 
 #Preview {
-    VStack {
+    VStack(spacing: 20) {
         StatsCardView(stats: ActionLogStats(
             totalLogs: 15,
             successLogs: 10,
@@ -63,7 +84,33 @@ struct StatCard: View {
             consecutiveDays: 5
         ))
         
-        StatsCardView(stats: nil)
+        StatsCardView(stats: ActionLogStats(
+            totalLogs: 0,
+            successLogs: 0,
+            totalPreventedCalories: 0,
+            consecutiveDays: 0
+        ))
     }
     .background(Color(.systemGray6))
+    .preferredColorScheme(.light)
+}
+
+#Preview("Dark Mode") {
+    VStack(spacing: 20) {
+        StatsCardView(stats: ActionLogStats(
+            totalLogs: 15,
+            successLogs: 10,
+            totalPreventedCalories: 1250,
+            consecutiveDays: 5
+        ))
+        
+        StatsCardView(stats: ActionLogStats(
+            totalLogs: 0,
+            successLogs: 0,
+            totalPreventedCalories: 0,
+            consecutiveDays: 0
+        ))
+    }
+    .background(Color(.systemGray6))
+    .preferredColorScheme(.dark)
 }
