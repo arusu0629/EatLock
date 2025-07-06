@@ -52,10 +52,16 @@ struct LogInputView: View {
                             .onChange(of: newLogContent) { newValue in
                                 // 文字数上限チェック
                                 if newValue.count > maxCharacters {
-                                    newLogContent = String(newValue.prefix(maxCharacters))
+                                    // 文字数制限を適用（状態変数の自己修正を避けるため遅延実行）
+                                    DispatchQueue.main.async {
+                                        newLogContent = String(newValue.prefix(maxCharacters))
+                                    }
                                     showCharacterLimitWarning = true
                                 } else {
-                                    showCharacterLimitWarning = false
+                                    // 警告を非表示にするのは、実際に文字数が制限内の場合のみ
+                                    if showCharacterLimitWarning {
+                                        showCharacterLimitWarning = false
+                                    }
                                 }
                             }
                         
