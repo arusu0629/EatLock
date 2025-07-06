@@ -1,103 +1,99 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
 # CodeRabbit Configuration for EatLock Project
 # 暴飲暴食抑制アプリのためのコードレビュー設定
 
-# 基本設定
+# 基本レビュー設定
 reviews:
-  # 自動レビューを有効にする
-  auto_review: true
-  # レビューの詳細度を設定
-  review_level: "comprehensive"
-  # 日本語でのレビューコメントを許可
-  language: "ja"
-  # レビューの優先度設定
-  priority: "high"
+  # 自動レビューの設定（オブジェクト形式）
+  auto_review:
+    enabled: true
+    # レビューをトリガーする条件
+    on_push: true
+    on_pull_request: true
+    # 除外するファイル
+    exclude:
+      - "**/xcuserdata/**"
+      - "**/DerivedData/**"
+      - "**/Pods/**"
+      - "**/.build/**"
+      - "**/Preview Content/**"
+      - "**/*.xcassets/**"
+      - "**/fastlane/**"
+  
+  # レビューステータスの表示
+  review_status: true
+  
+  # レビューの詳細度
+  high_level_summary: true
+  
+  # レビューコメントの設定
+  review_comments:
+    enabled: true
+    # 建設的なフィードバックを重視
+    tone: "constructive"
 
-# Swift/iOS固有の設定
-language_support:
-  swift:
-    # SwiftUI特有のパターンをチェック
-    swiftui_patterns: true
-    # メモリ管理（ARC）のチェック
-    memory_management: true
-    # プロトコル準拠のチェック
-    protocol_conformance: true
-    # 命名規則のチェック
-    naming_conventions: true
-    # オプショナルの適切な使用をチェック
-    optional_handling: true
+# パス設定
+path_instructions:
+  # Swift/iOS固有の設定
+  - path: "**/*.swift"
+    instructions: |
+      - SwiftUIのベストプラクティスに従っているかチェック
+      - メモリ管理（ARC）の問題がないかチェック
+      - プロトコル準拠が適切かチェック
+      - 命名規則がSwiftのコンベンションに従っているかチェック
+      - オプショナルの適切な使用をチェック
+      - プライバシーとセキュリティの観点からコードをレビュー
+  
+  - path: "**/*.md"
+    instructions: |
+      - ドキュメントの構造と内容の明確さをチェック
+      - 日本語の文章が適切かチェック
+      - コード例が正確かチェック
+  
+  - path: "**/ContentView.swift"
+    instructions: |
+      - UIレイアウトの実装が要求仕様に合っているかチェック
+      - ユーザーエクスペリエンスの観点から評価
+      - アクセシビリティの対応状況をチェック
+  
+  - path: "**/ActionLog.swift"
+    instructions: |
+      - データモデルの設計が適切かチェック
+      - データの暗号化処理が正しく実装されているかチェック
+      - パフォーマンスの観点から評価
 
-# プロジェクト固有の設定
-project_config:
-  # アプリタイプ：ヘルスケア/プライバシー重視
-  app_type: "healthcare"
-  # iOS最小対応バージョン
-  min_ios_version: "18.0"
-  # Swift バージョン
-  swift_version: "5.0"
-  # アーキテクチャ：SwiftUI + MVVM
-  architecture: "swiftui_mvvm"
-
-# レビュー対象ファイル
-include:
-  - "**/*.swift"
-  - "**/*.md"
-  - "**/*.plist"
-  - "**/*.xcodeproj/**"
-  - "**/*.strings"
-
-# レビュー除外ファイル
-exclude:
-  - "**/xcuserdata/**"
-  - "**/DerivedData/**"
-  - "**/Pods/**"
-  - "**/.build/**"
-  - "**/Preview Content/**"
-  - "**/*.xcassets/**"
-  - "**/fastlane/**"
+# 言語設定
+language: "ja"
 
 # 重点的にチェックする項目
 focus_areas:
   # セキュリティ（プライバシー重視アプリのため）
-  security:
-    - "data_encryption"
-    - "local_storage_security"
-    - "privacy_compliance"
-    - "sensitive_data_handling"
+  - "security"
+  - "data_privacy"
+  - "encryption"
   
   # コード品質
-  code_quality:
-    - "naming_conventions"
-    - "code_organization"
-    - "error_handling"
-    - "memory_leaks"
-    - "performance_optimization"
+  - "code_quality"
+  - "performance"
+  - "maintainability"
   
   # SwiftUI特有
-  swiftui:
-    - "view_composition"
-    - "state_management"
-    - "binding_usage"
-    - "preview_implementation"
-    - "accessibility"
+  - "swiftui_best_practices"
+  - "state_management"
+  - "view_composition"
   
-  # アプリ特有（暴飲暴食抑制アプリ）
-  app_specific:
-    - "user_experience"
-    - "data_persistence"
-    - "ai_integration"
-    - "offline_functionality"
+  # アプリ特有
+  - "user_experience"
+  - "accessibility"
+  - "offline_functionality"
 
 # 自動修正の設定
 auto_fix:
   # 自動修正を有効にする
   enabled: true
   # 安全な修正のみ実行
-  safe_fixes_only: true
-  # 修正対象
-  fix_types:
-    - "formatting"
-    - "imports"
-    - "simple_refactoring"
+  safe_only: true
 
 # 通知設定
 notifications:
@@ -105,97 +101,44 @@ notifications:
   on_pull_request: true
   # 重要な問題発見時の通知
   on_critical_issues: true
-  # レビュー完了時の通知
-  on_review_complete: true
 
 # カスタムルール
 custom_rules:
   # プライバシー関連のチェック
-  privacy_check:
+  - name: "privacy_check"
     description: "プライバシー関連のコードをチェック"
+    severity: "error"
     patterns:
       - "UserDefaults"
       - "CoreData"
       - "CloudKit"
       - "HealthKit"
-    severity: "error"
   
   # AI関連のチェック
-  ai_integration_check:
+  - name: "ai_integration_check"
     description: "AI統合部分のセキュリティチェック"
+    severity: "warning"
     patterns:
       - "Foundation.*Model"
       - "MLModel"
       - "CoreML"
-    severity: "warning"
   
   # ハードコーディングのチェック
-  hardcoding_check:
+  - name: "hardcoding_check"
     description: "ハードコーディングされた値をチェック"
+    severity: "warning"
     patterns:
       - "TODO"
       - "FIXME"
-      - "magic number"
-    severity: "warning"
-
-# レビューコメントの設定
-review_comments:
-  # 建設的なフィードバックを重視
-  tone: "constructive"
-  # 改善提案を含める
-  include_suggestions: true
-  # コード例を含める
-  include_examples: true
-  # 日本語での説明を許可
-  japanese_explanations: true
-
-# パフォーマンス設定
-performance:
-  # レビュー時間の制限（秒）
-  max_review_time: 300
-  # 並列処理の有効化
-  parallel_processing: true
-  # キャッシュの利用
-  use_cache: true
 
 # 統計とレポート
 reporting:
   # 統計情報の収集
-  collect_stats: true
+  enabled: true
   # レポート形式
   format: "markdown"
-  # 定期レポート
-  periodic_reports: true
-  # メトリクス追跡
-  track_metrics:
-    - "code_quality_score"
-    - "security_score"
-    - "maintainability_score"
-    - "test_coverage"
-
-# 統合設定
-integrations:
-  # GitHub統合
-  github:
-    # PR作成時の自動レビュー
-    auto_review_on_pr: true
-    # ステータスチェック
-    status_checks: true
-    # ラベル自動追加
-    auto_labels: true
-  
-  # Xcode統合
-  xcode:
-    # ビルド警告の統合
-    build_warnings: true
-    # 静的解析結果の統合
-    static_analysis: true
 
 # 学習とカスタマイズ
 learning:
   # プロジェクト固有のパターンを学習
-  learn_project_patterns: true
-  # フィードバックから学習
-  learn_from_feedback: true
-  # 継続的改善
-  continuous_improvement: true 
+  enabled: true 
