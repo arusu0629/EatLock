@@ -13,6 +13,7 @@ struct LogInputView: View {
     let onSubmit: () -> Void
     
     @State private var isPressed = false
+    @State private var isSubmitting = false
     @State private var keyboardHeight: CGFloat = 0
     @State private var keyboardShowObserver: NSObjectProtocol?
     @State private var keyboardHideObserver: NSObjectProtocol?
@@ -60,8 +61,11 @@ struct LogInputView: View {
                     }
                     .disabled(!isSubmitEnabled)
                     .onLongPressGesture(minimumDuration: 0.0, maximumDistance: .infinity, pressing: { pressing in
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            isPressed = pressing
+                        // 送信中でない場合のみアニメーション状態を更新
+                        if !isSubmitting {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                isPressed = pressing
+                            }
                         }
                     }, perform: {})
                 }
@@ -97,11 +101,14 @@ struct LogInputView: View {
     }
     
     private var isSubmitEnabled: Bool {
-        !newLogContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !newLogContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
     }
     
     private func handleSubmit() {
         guard isSubmitEnabled else { return }
+        
+        // 送信開始状態に設定（重複送信を防止）
+        isSubmitting = true
         
         // 送信アニメーション
         withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
@@ -112,9 +119,10 @@ struct LogInputView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             onSubmit()
             
-            // アニメーションを元に戻す
+            // アニメーションを元に戻し、送信状態をリセット
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                 isPressed = false
+                isSubmitting = false
             }
         }
     }
