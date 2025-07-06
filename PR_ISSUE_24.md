@@ -47,3 +47,11 @@ feat: 行動ログ保存処理と入力バリデーションの実装 (#24)
 - ActionLogRepositoryにバリデーション機能追加
 - ContentViewでToast表示機能を実装
 - 保存成功時のToast表示と入力欄クリア機能
+
+fix: ToastView dismissal task memory leak and state inconsistency
+
+- Add @State property to track DispatchWorkItem for dismissal task
+- Cancel existing task in onAppear to prevent duplicate scheduling
+- Add onDisappear to cancel task when view disappears
+- Prevents closure execution after view dismissal
+- Fixes memory leaks and state inconsistencies
