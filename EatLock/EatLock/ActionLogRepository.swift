@@ -15,10 +15,75 @@ class ActionLogRepository {
     private let dataSecurityManager: DataSecurityManager
     private let encryptionKey: Data
     
+    // MARK: - Reactive Properties
+    
+    /// 現在の統計情報（リアルタイム更新）
+    var currentStats: ActionLogStats = ActionLogStats(
+        totalLogs: 0,
+        successLogs: 0,
+        totalPreventedCalories: 0,
+        consecutiveDays: 0
+    )
+    
+    /// 今日の統計情報（リアルタイム更新）
+    var todaysStats: ActionLogStats = ActionLogStats(
+        totalLogs: 0,
+        successLogs: 0,
+        totalPreventedCalories: 0,
+        consecutiveDays: 0
+    )
+    
+    /// 統計情報の更新が必要かどうかを追跡
+    private var needsStatsUpdate: Bool = true
+    
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
         self.dataSecurityManager = DataSecurityManager.shared
         self.encryptionKey = dataSecurityManager.getDeviceEncryptionKey()
+        
+        // 初期化時に統計情報を更新
+        updateStatistics()
+    }
+    
+    // MARK: - Statistics Update Methods
+    
+    /// 統計情報を更新（内部メソッド）
+    private func updateStatistics() {
+        Task { @MainActor in
+            do {
+                // 全体の統計情報を更新
+                let allStats = try calculateStatistics()
+                self.currentStats = allStats
+                
+                // 今日の統計情報を更新
+                let todayStats = try calculateTodaysStatistics()
+                self.todaysStats = todayStats
+                
+                self.needsStatsUpdate = false
+            } catch {
+                print("統計情報の更新に失敗しました: \(error)")
+            }
+        }
+    }
+    
+    /// 統計情報を強制的に更新
+    public func refreshStatistics() {
+        updateStatistics()
+    }
+    
+    /// 指定期間の統計情報を取得（リアルタイム更新対応）
+    public func getStatistics(from startDate: Date, to endDate: Date) async throws -> ActionLogStats {
+        return try calculateStatistics(from: startDate, to: endDate)
+    }
+    
+    /// 今日の統計情報を取得（リアルタイム更新対応）
+    public func getTodaysStatistics() async throws -> ActionLogStats {
+        return try calculateTodaysStatistics()
+    }
+    
+    /// 全体の統計情報を取得（リアルタイム更新対応）
+    public func getAllStatistics() async throws -> ActionLogStats {
+        return try calculateStatistics()
     }
     
     // MARK: - Create
@@ -52,6 +117,8 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 統計情報を更新
+            updateStatistics()
             return actionLog
         } catch {
             modelContext.rollback()
@@ -170,6 +237,8 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 統計情報を更新
+            updateStatistics()
         } catch {
             // 保存失敗時は元のデータを復元
             actionLog.content = originalContent
@@ -202,6 +271,8 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 統計情報を更新
+            updateStatistics()
         } catch {
             // 保存失敗時は元のデータを復元
             actionLog.aiFeedback = originalAIFeedback
@@ -220,6 +291,8 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 統計情報を更新
+            updateStatistics()
         } catch {
             modelContext.rollback()
             throw ActionLogError.updateFailed(error)
@@ -234,6 +307,8 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 統計情報を更新
+            updateStatistics()
         } catch {
             modelContext.rollback()
             throw ActionLogError.deleteFailed(error)
@@ -248,6 +323,8 @@ class ActionLogRepository {
         
         do {
             try modelContext.save()
+            // 統計情報を更新
+            updateStatistics()
         } catch {
             modelContext.rollback()
             throw ActionLogError.deleteFailed(error)
@@ -265,6 +342,8 @@ class ActionLogRepository {
         do {
             let oldLogs = try modelContext.fetch(descriptor)
             try deleteActionLogs(oldLogs)
+            // 統計情報を更新
+            updateStatistics()
         } catch {
             throw ActionLogError.deleteFailed(error)
         }
