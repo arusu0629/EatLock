@@ -12,6 +12,8 @@ struct ToastView: View {
     let type: ToastType
     @Binding var isPresented: Bool
     
+    @State private var dismissalTask: DispatchWorkItem?
+    
     var body: some View {
         VStack {
             Spacer()
@@ -41,12 +43,24 @@ struct ToastView: View {
         .opacity(isPresented ? 1 : 0)
         .animation(.easeInOut(duration: 0.3), value: isPresented)
         .onAppear {
-            // 3秒後に自動的に非表示
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            // 既存のタスクがある場合はキャンセル
+            dismissalTask?.cancel()
+            
+            // 3秒後に自動的に非表示にするタスクを作成
+            let task = DispatchWorkItem {
                 withAnimation {
                     isPresented = false
                 }
             }
+            
+            // タスクを保存してスケジュール
+            dismissalTask = task
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: task)
+        }
+        .onDisappear {
+            // ビューが非表示になる際にタスクをキャンセル
+            dismissalTask?.cancel()
+            dismissalTask = nil
         }
     }
 }
