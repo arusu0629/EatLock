@@ -14,6 +14,8 @@ struct LogInputView: View {
     
     @State private var isPressed = false
     @State private var keyboardHeight: CGFloat = 0
+    @State private var keyboardShowObserver: NSObjectProtocol?
+    @State private var keyboardHideObserver: NSObjectProtocol?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -118,7 +120,7 @@ struct LogInputView: View {
     }
     
     private func setupKeyboardObservers() {
-        NotificationCenter.default.addObserver(
+        keyboardShowObserver = NotificationCenter.default.addObserver(
             forName: UIResponder.keyboardWillShowNotification,
             object: nil,
             queue: .main
@@ -135,7 +137,7 @@ struct LogInputView: View {
             }
         }
         
-        NotificationCenter.default.addObserver(
+        keyboardHideObserver = NotificationCenter.default.addObserver(
             forName: UIResponder.keyboardWillHideNotification,
             object: nil,
             queue: .main
@@ -145,16 +147,15 @@ struct LogInputView: View {
     }
     
     private func removeKeyboardObservers() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillShowNotification,
-            object: nil
-        )
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
+        if let observer = keyboardShowObserver {
+            NotificationCenter.default.removeObserver(observer)
+            keyboardShowObserver = nil
+        }
+        
+        if let observer = keyboardHideObserver {
+            NotificationCenter.default.removeObserver(observer)
+            keyboardHideObserver = nil
+        }
     }
 }
 

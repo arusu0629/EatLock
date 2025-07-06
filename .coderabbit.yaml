@@ -20,18 +20,12 @@ reviews:
       - "**/Preview Content/**"
       - "**/*.xcassets/**"
       - "**/fastlane/**"
-  
+
   # レビューステータスの表示
   review_status: true
-  
+
   # レビューの詳細度
   high_level_summary: true
-  
-  # レビューコメントの設定
-  review_comments:
-    enabled: true
-    # 建設的なフィードバックを重視
-    tone: "constructive"
 
 # パス設定
 path_instructions:
@@ -44,19 +38,19 @@ path_instructions:
       - 命名規則がSwiftのコンベンションに従っているかチェック
       - オプショナルの適切な使用をチェック
       - プライバシーとセキュリティの観点からコードをレビュー
-  
+
   - path: "**/*.md"
     instructions: |
       - ドキュメントの構造と内容の明確さをチェック
       - 日本語の文章が適切かチェック
       - コード例が正確かチェック
-  
+
   - path: "**/ContentView.swift"
     instructions: |
       - UIレイアウトの実装が要求仕様に合っているかチェック
       - ユーザーエクスペリエンスの観点から評価
       - アクセシビリティの対応状況をチェック
-  
+
   - path: "**/ActionLog.swift"
     instructions: |
       - データモデルの設計が適切かチェック
@@ -66,79 +60,9 @@ path_instructions:
 # 言語設定
 language: "ja"
 
-# 重点的にチェックする項目
-focus_areas:
-  # セキュリティ（プライバシー重視アプリのため）
-  - "security"
-  - "data_privacy"
-  - "encryption"
-  
-  # コード品質
-  - "code_quality"
-  - "performance"
-  - "maintainability"
-  
-  # SwiftUI特有
-  - "swiftui_best_practices"
-  - "state_management"
-  - "view_composition"
-  
-  # アプリ特有
-  - "user_experience"
-  - "accessibility"
-  - "offline_functionality"
-
 # 自動修正の設定
 auto_fix:
   # 自動修正を有効にする
   enabled: true
   # 安全な修正のみ実行
-  safe_only: true
-
-# 通知設定
-notifications:
-  # PR作成時の通知
-  on_pull_request: true
-  # 重要な問題発見時の通知
-  on_critical_issues: true
-
-# カスタムルール
-custom_rules:
-  # プライバシー関連のチェック
-  - name: "privacy_check"
-    description: "プライバシー関連のコードをチェック"
-    severity: "error"
-    patterns:
-      - "UserDefaults"
-      - "CoreData"
-      - "CloudKit"
-      - "HealthKit"
-  
-  # AI関連のチェック
-  - name: "ai_integration_check"
-    description: "AI統合部分のセキュリティチェック"
-    severity: "warning"
-    patterns:
-      - "Foundation.*Model"
-      - "MLModel"
-      - "CoreML"
-  
-  # ハードコーディングのチェック
-  - name: "hardcoding_check"
-    description: "ハードコーディングされた値をチェック"
-    severity: "warning"
-    patterns:
-      - "TODO"
-      - "FIXME"
-
-# 統計とレポート
-reporting:
-  # 統計情報の収集
-  enabled: true
-  # レポート形式
-  format: "markdown"
-
-# 学習とカスタマイズ
-learning:
-  # プロジェクト固有のパターンを学習
-  enabled: true 
+  safe_only: true 
