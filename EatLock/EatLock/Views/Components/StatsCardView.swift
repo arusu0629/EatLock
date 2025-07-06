@@ -8,55 +8,30 @@
 import SwiftUI
 
 struct StatsCardView: View {
-    let stats: ActionLogStats?
+    let stats: ActionLogStats
     
     var body: some View {
-        if let stats = stats {
-            HStack(spacing: 16) {
-                StatCard(
-                    title: "記録回数",
-                    value: "\(stats.totalLogs)",
-                    icon: "doc.text.fill",
-                    color: .green
-                )
-                StatCard(
-                    title: "防いだカロリー",
-                    value: "\(stats.totalPreventedCalories)",
-                    icon: "flame.fill",
-                    color: .green
-                )
-                StatCard(
-                    title: "継続日数",
-                    value: "\(stats.consecutiveDays)",
-                    icon: "calendar.badge.checkmark",
-                    color: .green
-                )
-            }
-            .padding()
-        } else {
-            // 統計データが利用できない場合のプレースホルダー
-            HStack(spacing: 16) {
-                StatCard(
-                    title: "記録回数",
-                    value: "0",
-                    icon: "doc.text.fill",
-                    color: .green
-                )
-                StatCard(
-                    title: "防いだカロリー",
-                    value: "0",
-                    icon: "flame.fill",
-                    color: .green
-                )
-                StatCard(
-                    title: "継続日数",
-                    value: "0",
-                    icon: "calendar.badge.checkmark",
-                    color: .green
-                )
-            }
-            .padding()
+        HStack(spacing: 16) {
+            StatCard(
+                title: "記録回数",
+                value: "\(stats.totalLogs)",
+                icon: "doc.text.fill",
+                color: .green
+            )
+            StatCard(
+                title: "防いだカロリー",
+                value: "\(stats.totalPreventedCalories)",
+                icon: "flame.fill",
+                color: .green
+            )
+            StatCard(
+                title: "継続日数",
+                value: "\(stats.consecutiveDays)",
+                icon: "calendar.badge.checkmark",
+                color: .green
+            )
         }
+        .padding()
     }
 }
 
@@ -109,7 +84,12 @@ struct StatCard: View {
             consecutiveDays: 5
         ))
         
-        StatsCardView(stats: nil)
+        StatsCardView(stats: ActionLogStats(
+            totalLogs: 0,
+            successLogs: 0,
+            totalPreventedCalories: 0,
+            consecutiveDays: 0
+        ))
     }
     .background(Color(.systemGray6))
     .preferredColorScheme(.light)
@@ -124,7 +104,12 @@ struct StatCard: View {
             consecutiveDays: 5
         ))
         
-        StatsCardView(stats: nil)
+        StatsCardView(stats: ActionLogStats(
+            totalLogs: 0,
+            successLogs: 0,
+            totalPreventedCalories: 0,
+            consecutiveDays: 0
+        ))
     }
     .background(Color(.systemGray6))
     .preferredColorScheme(.dark)

@@ -49,7 +49,7 @@ struct ContentView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         // 統計カード
-                        StatsCardView(stats: calculateStats())
+                        StatsCardView(stats: repository.currentStats)
                         
                         // 行動ログ一覧
                         LogListView(
@@ -157,7 +157,9 @@ struct ContentView: View {
     }
     
     private func calculateStats() -> ActionLogStats? {
-        return ActionLog.calculateStats(from: actionLogs)
+        // 現在は repository.currentStats を使用するため、このメソッドは不要
+        // 後方互換性のために残している
+        return repository.currentStats
     }
     
     private func showToast(message: String, type: ToastType) {
