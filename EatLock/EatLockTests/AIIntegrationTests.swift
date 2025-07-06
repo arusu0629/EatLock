@@ -32,11 +32,24 @@ final class AIIntegrationTests: XCTestCase {
         try super.tearDownWithError()
     }
     
+    // MARK: - Test Utilities
+    
+    private func setupAI() async throws {
+        await aiManager.initialize()
+        
+        // AI初期化の検証
+        guard aiManager.isInitialized else {
+            throw XCTestError(.failureWhileWaiting, userInfo: [
+                "description": "AI initialization failed in integration test - cannot proceed"
+            ])
+        }
+    }
+    
     // MARK: - Integration Tests
     
     func testCreateActionLogWithAIFeedback() async throws {
         // AIフィードバック付きでActionLogを作成するテスト
-        await aiManager.initialize()
+        try await setupAI()
         
         let content = "今日はチョコレートケーキを我慢しました"
         let actionLog = try await repository.createActionLogWithAIFeedback(content: content, logType: .success)
@@ -46,41 +59,43 @@ final class AIIntegrationTests: XCTestCase {
         
         // 暗号化されたコンテンツを確認
         let decryptedContent = repository.getSecureContent(for: actionLog)
-        XCTAssertEqual(decryptedContent, content, "Decrypted content should match original")
+        XCTAssertEqual(decryptedContent, content, "Decrypted content should match original: '\(content)'")
         
         // AIフィードバックが生成されているかを確認
         let aiFeedback = repository.getSecureAIFeedback(for: actionLog)
-        XCTAssertNotNil(aiFeedback, "AI feedback should be generated")
+        XCTAssertNotNil(aiFeedback, "AI feedback should be generated for content: '\(content)'")
         XCTAssertFalse(aiFeedback?.isEmpty ?? true, "AI feedback should not be empty")
         
         // カロリー計算が正しく行われているかを確認
         XCTAssertNotNil(actionLog.preventedCalories, "Prevented calories should be calculated")
-        XCTAssertGreaterThan(actionLog.preventedCalories ?? 0, 0, "Prevented calories should be positive")
+        XCTAssertGreaterThan(actionLog.preventedCalories ?? 0, 0, "Prevented calories should be positive for success log")
     }
     
     func testManualAIFeedbackGeneration() async throws {
         // 手動でAIフィードバックを生成するテスト
-        await aiManager.initialize()
+        try await setupAI()
         
         // 基本的なActionLogを作成
-        let actionLog = try repository.createActionLog(content: "深夜にアイスクリームを我慢しました", logType: .success)
+        let content = "深夜にアイスクリームを我慢しました"
+        let actionLog = try repository.createActionLog(content: content, logType: .success)
         
         // 手動でAIフィードバックを生成
         await repository.generateAIFeedback(for: actionLog)
         
         // フィードバックが保存されているかを確認
         let aiFeedback = repository.getSecureAIFeedback(for: actionLog)
-        XCTAssertNotNil(aiFeedback, "AI feedback should be generated")
+        XCTAssertNotNil(aiFeedback, "AI feedback should be generated for manual request")
         XCTAssertFalse(aiFeedback?.isEmpty ?? true, "AI feedback should not be empty")
         
         // 深夜食の場合、カロリーが500以上になっているかを確認
-        XCTAssertNotNil(actionLog.preventedCalories, "Prevented calories should be calculated")
-        XCTAssertGreaterThanOrEqual(actionLog.preventedCalories ?? 0, 500, "Late night eating should have at least 500 calories")
+        XCTAssertNotNil(actionLog.preventedCalories, "Prevented calories should be calculated for late night eating")
+        XCTAssertGreaterThanOrEqual(actionLog.preventedCalories ?? 0, 500, 
+                                   "Late night eating should have at least 500 calories, got: \(actionLog.preventedCalories ?? 0)")
     }
     
     func testBatchAIFeedbackGeneration() async throws {
         // 複数のActionLogに対してAIフィードバックを一括生成するテスト
-        await aiManager.initialize()
+        try await setupAI()
         
         let testContents = [
             "今日はお菓子を我慢しました",
@@ -92,46 +107,51 @@ final class AIIntegrationTests: XCTestCase {
         
         // 複数のActionLogを作成
         var actionLogs: [ActionLog] = []
-        for content in testContents {
+        for (index, content) in testContents.enumerated() {
             let actionLog = try repository.createActionLog(content: content, logType: .success)
             actionLogs.append(actionLog)
         }
+        
+        XCTAssertEqual(actionLogs.count, testContents.count, "All action logs should be created")
         
         // 一括でAIフィードバックを生成
         await repository.generateAIFeedbackBatch(for: actionLogs)
         
         // すべてのログにフィードバックが生成されているかを確認
-        for actionLog in actionLogs {
+        for (index, actionLog) in actionLogs.enumerated() {
             let aiFeedback = repository.getSecureAIFeedback(for: actionLog)
-            XCTAssertNotNil(aiFeedback, "AI feedback should be generated for all logs")
-            XCTAssertFalse(aiFeedback?.isEmpty ?? true, "AI feedback should not be empty")
+            XCTAssertNotNil(aiFeedback, "AI feedback should be generated for log \(index): '\(testContents[index])'")
+            XCTAssertFalse(aiFeedback?.isEmpty ?? true, "AI feedback should not be empty for log \(index)")
         }
     }
     
     func testFeedbackGenerationWithEmotionalTrigger() async throws {
         // 感情的トリガーのあるログに対するフィードバック生成テスト
-        await aiManager.initialize()
+        try await setupAI()
         
         let emotionalContent = "ストレスでイライラして食べ過ぎました"
         let actionLog = try await repository.createActionLogWithAIFeedback(content: emotionalContent, logType: .failure)
         
         // フィードバックが生成されているかを確認
         let aiFeedback = repository.getSecureAIFeedback(for: actionLog)
-        XCTAssertNotNil(aiFeedback, "AI feedback should be generated")
+        XCTAssertNotNil(aiFeedback, "AI feedback should be generated for emotional content")
         
         // サポートメッセージが含まれているかを確認
-        XCTAssertTrue(aiFeedback?.contains("理解") ?? false ||
-                     aiFeedback?.contains("大丈夫") ?? false ||
-                     aiFeedback?.contains("無理せず") ?? false,
-                     "Support message should be generated for emotional triggers")
+        let supportKeywords = ["理解", "大丈夫", "無理せず", "優しく", "感情"]
+        let containsSupportKeyword = supportKeywords.contains { keyword in
+            aiFeedback?.lowercased().contains(keyword.lowercased()) ?? false
+        }
+        XCTAssertTrue(containsSupportKeyword, 
+                     "Support message should be generated for emotional triggers. Message: '\(aiFeedback ?? "nil")'")
         
         // 感情的トリガーの場合、カロリーは0になることを確認
-        XCTAssertEqual(actionLog.preventedCalories ?? -1, 0, "Emotional trigger should have 0 prevented calories")
+        XCTAssertEqual(actionLog.preventedCalories ?? -1, 0, 
+                      "Emotional trigger should have 0 prevented calories, got: \(actionLog.preventedCalories ?? -1)")
     }
     
     func testStatisticsUpdateWithAIFeedback() async throws {
         // AIフィードバック付きログ作成後の統計情報更新テスト
-        await aiManager.initialize()
+        try await setupAI()
         
         let initialStats = try await repository.getAllStatistics()
         
@@ -145,14 +165,17 @@ final class AIIntegrationTests: XCTestCase {
         let updatedStats = try await repository.getAllStatistics()
         
         // 統計情報が更新されているかを確認
-        XCTAssertEqual(updatedStats.totalLogs, initialStats.totalLogs + 1, "Total logs should increase by 1")
-        XCTAssertEqual(updatedStats.successLogs, initialStats.successLogs + 1, "Success logs should increase by 1")
-        XCTAssertGreaterThan(updatedStats.totalPreventedCalories, initialStats.totalPreventedCalories, "Total prevented calories should increase")
+        XCTAssertEqual(updatedStats.totalLogs, initialStats.totalLogs + 1, 
+                      "Total logs should increase by 1 (from \(initialStats.totalLogs) to \(updatedStats.totalLogs))")
+        XCTAssertEqual(updatedStats.successLogs, initialStats.successLogs + 1, 
+                      "Success logs should increase by 1 (from \(initialStats.successLogs) to \(updatedStats.successLogs))")
+        XCTAssertGreaterThan(updatedStats.totalPreventedCalories, initialStats.totalPreventedCalories, 
+                           "Total prevented calories should increase (from \(initialStats.totalPreventedCalories) to \(updatedStats.totalPreventedCalories))")
     }
     
     func testFeedbackGenerationWithDifferentLogTypes() async throws {
         // 異なるログタイプに対するフィードバック生成テスト
-        await aiManager.initialize()
+        try await setupAI()
         
         let testCases = [
             ("success", "今日はお菓子を我慢しました", LogType.success),
@@ -173,7 +196,7 @@ final class AIIntegrationTests: XCTestCase {
     
     func testEncryptionAndDecryption() async throws {
         // 暗号化と復号化のテスト
-        await aiManager.initialize()
+        try await setupAI()
         
         let originalContent = "秘密の内容：今日はアイスクリームを我慢しました"
         let actionLog = try await repository.createActionLogWithAIFeedback(content: originalContent, logType: .success)
@@ -198,7 +221,7 @@ final class AIIntegrationTests: XCTestCase {
     
     func testWithoutAIFeedbackQuery() async throws {
         // AIフィードバック未生成のログを取得するテスト
-        await aiManager.initialize()
+        try await setupAI()
         
         // 基本的なActionLogを作成（AIフィードバックなし）
         let actionLog1 = try repository.createActionLog(content: "テスト1", logType: .success)
@@ -221,7 +244,7 @@ final class AIIntegrationTests: XCTestCase {
     
     func testPerformanceWithLargeDataset() async throws {
         // 大量データでのパフォーマンステスト
-        await aiManager.initialize()
+        try await setupAI()
         
         let numberOfLogs = 50
         var actionLogs: [ActionLog] = []

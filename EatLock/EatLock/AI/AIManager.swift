@@ -63,13 +63,26 @@ final class AIManager: ObservableObject {
             return .failure(.modelNotInitialized)
         }
         
-        logger.info("Generating feedback for input")
+        // 入力の事前検証
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty else {
+            logger.warning("Empty input provided to generateFeedback")
+            return .failure(.inputProcessingFailed)
+        }
         
-        let result = await aiService.generateFeedback(for: input)
+        // 入力長の制限チェック（DoS攻撃防止）
+        guard trimmedInput.count <= 200 else {
+            logger.warning("Input too long: \(trimmedInput.count) characters")
+            return .failure(.inputProcessingFailed)
+        }
+        
+        logger.info("Generating feedback for input (length: \(trimmedInput.count))")
+        
+        let result = await aiService.generateFeedback(for: trimmedInput)
         
         switch result {
         case .success(let feedback):
-            logger.info("Feedback generated successfully")
+            logger.info("Feedback generated successfully: type=\(feedback.type), calories=\(feedback.preventedCalories)")
             return .success(feedback)
         case .failure(let error):
             logger.error("Feedback generation failed: \(error.localizedDescription)")
@@ -82,20 +95,25 @@ final class AIManager: ObservableObject {
     /// - Parameter input: ユーザーの入力テキスト
     /// - Returns: JSON形式のフィードバック結果
     func generateFeedbackAsJSON(for input: String) async -> Result<String, AIError> {
+        logger.info("Generating JSON feedback for input")
+        
         let result = await generateFeedback(for: input)
         
         switch result {
         case .success(let feedback):
             do {
-                let jsonData = try JSONEncoder().encode(feedback.toJSONResponse())
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = .prettyPrinted // デバッグ用の整形
+                let jsonData = try encoder.encode(feedback.toJSONResponse())
                 let jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
-                logger.info("Feedback generated as JSON successfully")
+                logger.info("Feedback generated as JSON successfully (size: \(jsonString.count) bytes)")
                 return .success(jsonString)
             } catch {
-                logger.error("Failed to encode feedback as JSON: \(error)")
-                return .failure(.unknownError("JSON encoding failed"))
+                logger.error("Failed to encode feedback as JSON: \(error.localizedDescription)")
+                return .failure(.unknownError("JSON encoding failed: \(error.localizedDescription)"))
             }
         case .failure(let error):
+            logger.error("JSON feedback generation failed at feedback generation stage: \(error.localizedDescription)")
             return .failure(error)
         }
     }

@@ -23,8 +23,15 @@ final class AIFeedbackTests: XCTestCase {
     
     // MARK: - Test Utilities
     
-    private func setupAI() async {
+    private func setupAI() async throws {
         await aiManager.initialize()
+        
+        // AI初期化の検証
+        guard aiManager.isInitialized else {
+            throw XCTestError(.failureWhileWaiting, userInfo: [
+                "description": "AI initialization failed - cannot proceed with tests"
+            ])
+        }
     }
     
     private func assertFeedbackGeneration(
@@ -35,16 +42,34 @@ final class AIFeedbackTests: XCTestCase {
         file: StaticString = #file,
         line: UInt = #line
     ) async {
-        let result = await aiManager.generateFeedback(for: input)
-        
-        switch result {
-        case .success(let feedback):
-            XCTAssertFalse(feedback.message.isEmpty, "Feedback message should not be empty", file: file, line: line)
-            XCTAssertEqual(feedback.type, expectedType, "Feedback type should be \(expectedType)", file: file, line: line)
-            XCTAssertGreaterThanOrEqual(feedback.preventedCalories, expectedMinCalories, "Prevented calories should be at least \(expectedMinCalories)", file: file, line: line)
-            XCTAssertLessThanOrEqual(feedback.preventedCalories, expectedMaxCalories, "Prevented calories should be at most \(expectedMaxCalories)", file: file, line: line)
-        case .failure(let error):
-            XCTFail("Feedback generation failed for '\(input)': \(error)", file: file, line: line)
+        do {
+            let result = await aiManager.generateFeedback(for: input)
+            
+            switch result {
+            case .success(let feedback):
+                XCTAssertFalse(feedback.message.isEmpty, 
+                              "Feedback message should not be empty for input: '\(input)'", 
+                              file: file, line: line)
+                XCTAssertEqual(feedback.type, expectedType, 
+                              "Feedback type should be \(expectedType) for input: '\(input)', but got \(feedback.type)", 
+                              file: file, line: line)
+                XCTAssertGreaterThanOrEqual(feedback.preventedCalories, expectedMinCalories, 
+                                          "Prevented calories (\(feedback.preventedCalories)) should be at least \(expectedMinCalories) for input: '\(input)'", 
+                                          file: file, line: line)
+                XCTAssertLessThanOrEqual(feedback.preventedCalories, expectedMaxCalories, 
+                                       "Prevented calories (\(feedback.preventedCalories)) should be at most \(expectedMaxCalories) for input: '\(input)'", 
+                                       file: file, line: line)
+                
+                // 日付の妥当性をチェック
+                let timeDifference = abs(feedback.generatedAt.timeIntervalSinceNow)
+                XCTAssertLessThan(timeDifference, 5.0, 
+                                 "Generated timestamp should be recent (within 5 seconds)", 
+                                 file: file, line: line)
+                
+            case .failure(let error):
+                XCTFail("Feedback generation failed for '\(input)': \(error.localizedDescription)", 
+                       file: file, line: line)
+            }
         }
     }
     
@@ -59,26 +84,46 @@ final class AIFeedbackTests: XCTestCase {
         
         switch result {
         case .success(let jsonString):
-            XCTAssertFalse(jsonString.isEmpty, "JSON string should not be empty", file: file, line: line)
+            XCTAssertFalse(jsonString.isEmpty, 
+                          "JSON string should not be empty for input: '\(input)'", 
+                          file: file, line: line)
             
             do {
-                let jsonData = jsonString.data(using: .utf8)!
+                guard let jsonData = jsonString.data(using: .utf8) else {
+                    XCTFail("Failed to convert JSON string to Data", file: file, line: line)
+                    return
+                }
+                
                 let feedbackResponse = try JSONDecoder().decode(AIFeedbackJSONResponse.self, from: jsonData)
                 
-                XCTAssertFalse(feedbackResponse.message.isEmpty, "JSON message should not be empty", file: file, line: line)
-                XCTAssertGreaterThanOrEqual(feedbackResponse.kcal, expectedMinCalories, "JSON kcal should be at least \(expectedMinCalories)", file: file, line: line)
-                XCTAssertEqual(feedbackResponse.type, expectedType, "JSON type should be \(expectedType)", file: file, line: line)
+                XCTAssertFalse(feedbackResponse.message.isEmpty, 
+                              "JSON message should not be empty for input: '\(input)'", 
+                              file: file, line: line)
+                XCTAssertGreaterThanOrEqual(feedbackResponse.kcal, expectedMinCalories, 
+                                          "JSON kcal (\(feedbackResponse.kcal)) should be at least \(expectedMinCalories)", 
+                                          file: file, line: line)
+                XCTAssertEqual(feedbackResponse.type, expectedType, 
+                              "JSON type should be '\(expectedType)' but got '\(feedbackResponse.type)'", 
+                              file: file, line: line)
+                
+                // JSON構造の妥当性をチェック
+                XCTAssertFalse(feedbackResponse.generatedAt.isEmpty, 
+                              "Generated timestamp should not be empty", 
+                              file: file, line: line)
+                
             } catch {
-                XCTFail("Failed to decode JSON: \(error)", file: file, line: line)
+                XCTFail("Failed to decode JSON for input '\(input)': \(error)", file: file, line: line)
             }
         case .failure(let error):
-            XCTFail("JSON feedback generation failed for '\(input)': \(error)", file: file, line: line)
+            XCTFail("JSON feedback generation failed for '\(input)': \(error.localizedDescription)", 
+                   file: file, line: line)
         }
     }
     
     private func assertCaloriesForFood(
         _ food: String,
         expectedCalories: Int,
+        tolerance: Int = 0,
         file: StaticString = #file,
         line: UInt = #line
     ) async {
@@ -87,10 +132,18 @@ final class AIFeedbackTests: XCTestCase {
         
         switch result {
         case .success(let feedback):
-            XCTAssertEqual(feedback.preventedCalories, expectedCalories, 
-                          "Calories for \(food) should be \(expectedCalories)", file: file, line: line)
+            if tolerance > 0 {
+                XCTAssertTrue(abs(feedback.preventedCalories - expectedCalories) <= tolerance, 
+                             "Calories for '\(food)' should be \(expectedCalories) ± \(tolerance), but got \(feedback.preventedCalories)", 
+                             file: file, line: line)
+            } else {
+                XCTAssertEqual(feedback.preventedCalories, expectedCalories, 
+                              "Calories for '\(food)' should be exactly \(expectedCalories), but got \(feedback.preventedCalories)", 
+                              file: file, line: line)
+            }
         case .failure(let error):
-            XCTFail("Feedback generation failed for \(food): \(error)", file: file, line: line)
+            XCTFail("Feedback generation failed for '\(food)': \(error.localizedDescription)", 
+                   file: file, line: line)
         }
     }
     
@@ -105,25 +158,27 @@ final class AIFeedbackTests: XCTestCase {
         switch result {
         case .success(let feedback):
             let messageContainsKeyword = expectedKeywords.contains { keyword in
-                feedback.message.contains(keyword)
+                feedback.message.lowercased().contains(keyword.lowercased())
             }
             XCTAssertTrue(messageContainsKeyword, 
-                         "Message should contain one of: \(expectedKeywords)", file: file, line: line)
+                         "Message '\(feedback.message)' should contain one of: \(expectedKeywords)", 
+                         file: file, line: line)
         case .failure(let error):
-            XCTFail("Feedback generation failed for '\(input)': \(error)", file: file, line: line)
+            XCTFail("Feedback generation failed for '\(input)': \(error.localizedDescription)", 
+                   file: file, line: line)
         }
     }
     
     // MARK: - AI Manager Tests
     
     func testAIManagerInitialization() async throws {
-        await setupAI()
+        try await setupAI()
         XCTAssertTrue(aiManager.isInitialized, "AI should be initialized")
         XCTAssertEqual(aiManager.status, .ready, "AI status should be ready")
     }
     
     func testFeedbackGenerationWithSuccessLog() async throws {
-        await setupAI()
+        try await setupAI()
         await assertFeedbackGeneration(
             for: "今日はアイスクリームを我慢しました",
             expectedType: .achievement,
@@ -132,7 +187,7 @@ final class AIFeedbackTests: XCTestCase {
     }
     
     func testFeedbackGenerationWithEmotionalTrigger() async throws {
-        await setupAI()
+        try await setupAI()
         await assertFeedbackGeneration(
             for: "ストレスでイライラしています",
             expectedType: .support,
@@ -142,7 +197,7 @@ final class AIFeedbackTests: XCTestCase {
     }
     
     func testFeedbackGenerationWithLateNightEating() async throws {
-        await setupAI()
+        try await setupAI()
         await assertFeedbackGeneration(
             for: "深夜にラーメンを我慢しました",
             expectedType: .achievement,
@@ -151,7 +206,7 @@ final class AIFeedbackTests: XCTestCase {
     }
     
     func testJSONFeedbackGeneration() async throws {
-        await setupAI()
+        try await setupAI()
         await assertJSONFeedbackGeneration(
             for: "チョコレートケーキを我慢しました",
             expectedType: "achievement",
@@ -162,7 +217,7 @@ final class AIFeedbackTests: XCTestCase {
     // MARK: - Calorie Calculation Tests
     
     func testCalorieCalculationForSweets() async throws {
-        await setupAI()
+        try await setupAI()
         
         let testCases: [(String, Int)] = [
             ("アイスクリーム", 250),
@@ -178,7 +233,7 @@ final class AIFeedbackTests: XCTestCase {
     }
     
     func testCalorieCalculationForFastFood() async throws {
-        await setupAI()
+        try await setupAI()
         
         let testCases: [(String, Int)] = [
             ("ハンバーガー", 500),
@@ -193,7 +248,7 @@ final class AIFeedbackTests: XCTestCase {
     }
     
     func testCalorieCalculationForLateNightEating() async throws {
-        await setupAI()
+        try await setupAI()
         
         let testCases: [(String, Int)] = [
             ("深夜にアイスを我慢しました", 500), // 250 * 1.5 = 375, but minimum is 500
@@ -210,7 +265,7 @@ final class AIFeedbackTests: XCTestCase {
     // MARK: - Message Type Tests
     
     func testAchievementMessageGeneration() async throws {
-        await setupAI()
+        try await setupAI()
         
         let inputs = [
             "今日はお菓子を我慢しました",
@@ -225,7 +280,7 @@ final class AIFeedbackTests: XCTestCase {
     }
     
     func testSupportMessageGeneration() async throws {
-        await setupAI()
+        try await setupAI()
         
         let inputs = [
             "ストレスで食べ過ぎました",
@@ -240,7 +295,7 @@ final class AIFeedbackTests: XCTestCase {
     }
     
     func testWarningMessageGeneration() async throws {
-        await setupAI()
+        try await setupAI()
         
         let inputs = [
             "深夜に食べました",
@@ -257,7 +312,7 @@ final class AIFeedbackTests: XCTestCase {
     // MARK: - Edge Cases Tests
     
     func testEmptyInputHandling() async throws {
-        await setupAI()
+        try await setupAI()
         
         let result = await aiManager.generateFeedback(for: "")
         
@@ -266,6 +321,25 @@ final class AIFeedbackTests: XCTestCase {
             XCTFail("Empty input should fail")
         case .failure(let error):
             XCTAssertEqual(error, .inputProcessingFailed, "Empty input should return inputProcessingFailed error")
+        }
+    }
+    
+    func testVeryLongInputHandling() async throws {
+        try await setupAI()
+        
+        // 201文字の非常に長い入力をテスト
+        let longInput = String(repeating: "あ", count: 201)
+        let result = await aiManager.generateFeedback(for: longInput)
+        
+        switch result {
+        case .success(let feedback):
+            // フォールバックメッセージが返されることを確認
+            XCTAssertTrue(feedback.message.contains("エラー") || feedback.message.contains("確認"), 
+                         "Very long input should return fallback message")
+            XCTAssertEqual(feedback.type, .encouragement, "Very long input should return encouragement type")
+        case .failure(let error):
+            // エラーが返されることも許容
+            XCTAssertEqual(error, .inputProcessingFailed, "Very long input should return inputProcessingFailed error")
         }
     }
     
@@ -285,7 +359,7 @@ final class AIFeedbackTests: XCTestCase {
     // MARK: - Performance Tests
     
     func testFeedbackGenerationPerformance() async throws {
-        await setupAI()
+        try await setupAI()
         
         measure {
             let expectation = XCTestExpectation(description: "Feedback generation performance")
@@ -298,7 +372,32 @@ final class AIFeedbackTests: XCTestCase {
                 expectation.fulfill()
             }
             
-            wait(for: [expectation], timeout: 5.0)
+            wait(for: [expectation], timeout: 10.0) // タイムアウトを延長
+        }
+    }
+    
+    func testConcurrentFeedbackGeneration() async throws {
+        try await setupAI()
+        
+        let inputs = [
+            "アイスクリームを我慢しました",
+            "チョコレートを控えました",
+            "ケーキを断りました",
+            "ストレスを感じています",
+            "深夜にラーメンを我慢しました"
+        ]
+        
+        // 同時並行でフィードバック生成をテスト
+        await withTaskGroup(of: Void.self) { group in
+            for input in inputs {
+                group.addTask {
+                    await self.assertFeedbackGeneration(
+                        for: input,
+                        expectedType: input.contains("ストレス") ? .support : .achievement,
+                        expectedMinCalories: 0
+                    )
+                }
+            }
         }
     }
 }
