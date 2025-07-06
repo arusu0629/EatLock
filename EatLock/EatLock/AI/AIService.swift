@@ -79,7 +79,7 @@ struct AIFeedbackJSONResponse: Codable {
 // MARK: - AIError
 
 /// AI処理関連のエラー
-enum AIError: Error, LocalizedError {
+enum AIError: Error, LocalizedError, Equatable {
     case modelNotFound
     case modelInitializationFailed
     case modelNotInitialized
@@ -104,6 +104,22 @@ enum AIError: Error, LocalizedError {
             return "リソースが利用できません"
         case .unknownError(let message):
             return "不明なエラー: \(message)"
+        }
+    }
+    
+    static func == (lhs: AIError, rhs: AIError) -> Bool {
+        switch (lhs, rhs) {
+        case (.modelNotFound, .modelNotFound),
+             (.modelInitializationFailed, .modelInitializationFailed),
+             (.modelNotInitialized, .modelNotInitialized),
+             (.inputProcessingFailed, .inputProcessingFailed),
+             (.predictionFailed, .predictionFailed),
+             (.resourceNotAvailable, .resourceNotAvailable):
+            return true
+        case (.unknownError(let lhsMessage), .unknownError(let rhsMessage)):
+            return lhsMessage == rhsMessage
+        default:
+            return false
         }
     }
 }

@@ -205,139 +205,271 @@ final class LocalAIService: AIService {
     private func analyzeDummyInput(_ input: String) -> (message: String, preventedCalories: Int, type: AIFeedback.FeedbackType) {
         let lowerInput = input.lowercased()
         
-        // キーワード分析
-        let positiveKeywords = ["我慢", "やめた", "控えた", "断った", "抑えた", "我慢した", "やめました", "控えました", "断りました", "抑えました"]
-        let timeKeywords = ["深夜", "夜中", "夜遅く", "夜食", "夜更かし", "2時", "3時", "4時", "12時", "1時"]
-        let emotionalKeywords = ["ストレス", "イライラ", "落ち込み", "不安", "疲れ", "憂鬱", "つらい", "辛い"]
+        // 各種分析を実行
+        let keywordAnalysis = analyzeKeywords(in: lowerInput)
+        let calorieAnalysis = analyzeCalories(in: lowerInput, hasTimeContext: keywordAnalysis.hasTimeContext)
+        let messageType = determineMessageType(from: keywordAnalysis)
+        let message = generateMessage(
+            for: messageType,
+            foodCategory: calorieAnalysis.foodCategory,
+            preventedCalories: calorieAnalysis.preventedCalories,
+            hasTimeContext: keywordAnalysis.hasTimeContext
+        )
         
-        // 食べ物カテゴリ別キーワードとカロリー
-        let sweetKeywords = ["アイス", "チョコ", "チョコレート", "ケーキ", "クッキー", "クリーム", "甘い", "デザート", "お菓子"]
-        let snackKeywords = ["スナック", "ポテチ", "ポテトチップス", "せんべい", "クラッカー", "ビスケット"]
-        let drinkKeywords = ["ジュース", "炭酸", "コーラ", "ソーダ", "甘い飲み物", "砂糖入り"]
-        let fastFoodKeywords = ["ファストフード", "ハンバーガー", "フライドポテト", "ピザ", "ラーメン", "コンビニ弁当"]
-        let friedFoodKeywords = ["揚げ物", "フライ", "天ぷら", "から揚げ", "唐揚げ", "フライドチキン"]
-        let alcoholKeywords = ["酒", "ビール", "ワイン", "日本酒", "焼酎", "ウイスキー", "お酒", "飲酒"]
+        return (message, calorieAnalysis.preventedCalories, messageType)
+    }
+    
+    // MARK: - Analysis Helper Methods
+    
+    private func analyzeKeywords(in input: String) -> KeywordAnalysis {
+        let positiveKeywords = AIConstants.Keywords.positive
+        let timeKeywords = AIConstants.Keywords.time
+        let emotionalKeywords = AIConstants.Keywords.emotional
         
-        let hasPositiveAction = positiveKeywords.contains { lowerInput.contains($0) }
-        let hasTimeContext = timeKeywords.contains { lowerInput.contains($0) }
-        let hasEmotionalTrigger = emotionalKeywords.contains { lowerInput.contains($0) }
+        return KeywordAnalysis(
+            hasPositiveAction: positiveKeywords.contains { input.contains($0) },
+            hasTimeContext: timeKeywords.contains { input.contains($0) },
+            hasEmotionalTrigger: emotionalKeywords.contains { input.contains($0) }
+        )
+    }
+    
+    private func analyzeCalories(in input: String, hasTimeContext: Bool) -> CalorieAnalysis {
+        let foodCategories = AIConstants.FoodCategories.all
         
-        // カロリー推定（カテゴリ別）
-        var preventedCalories = 0
-        var foodCategory = ""
-        
-        if sweetKeywords.contains(where: { lowerInput.contains($0) }) {
-            preventedCalories = 300 // 甘い物の基本カロリー
-            foodCategory = "甘い物"
-            
-            // 具体的な食べ物による調整
-            if lowerInput.contains("アイス") { preventedCalories = 250 }
-            else if lowerInput.contains("チョコ") { preventedCalories = 200 }
-            else if lowerInput.contains("ケーキ") { preventedCalories = 400 }
-            else if lowerInput.contains("クッキー") { preventedCalories = 150 }
-            else if lowerInput.contains("クリーム") { preventedCalories = 350 }
-            
-        } else if snackKeywords.contains(where: { lowerInput.contains($0) }) {
-            preventedCalories = 200 // スナック類の基本カロリー
-            foodCategory = "スナック"
-            
-            if lowerInput.contains("ポテチ") || lowerInput.contains("ポテトチップス") { preventedCalories = 350 }
-            else if lowerInput.contains("せんべい") { preventedCalories = 180 }
-            
-        } else if drinkKeywords.contains(where: { lowerInput.contains($0) }) {
-            preventedCalories = 120 // 甘い飲み物の基本カロリー
-            foodCategory = "甘い飲み物"
-            
-            if lowerInput.contains("コーラ") { preventedCalories = 140 }
-            else if lowerInput.contains("ジュース") { preventedCalories = 100 }
-            
-        } else if fastFoodKeywords.contains(where: { lowerInput.contains($0) }) {
-            preventedCalories = 600 // ファストフードの基本カロリー
-            foodCategory = "ファストフード"
-            
-            if lowerInput.contains("ハンバーガー") { preventedCalories = 500 }
-            else if lowerInput.contains("ピザ") { preventedCalories = 700 }
-            else if lowerInput.contains("ラーメン") { preventedCalories = 550 }
-            else if lowerInput.contains("コンビニ弁当") { preventedCalories = 450 }
-            
-        } else if friedFoodKeywords.contains(where: { lowerInput.contains($0) }) {
-            preventedCalories = 300 // 揚げ物の基本カロリー
-            foodCategory = "揚げ物"
-            
-            if lowerInput.contains("から揚げ") || lowerInput.contains("唐揚げ") { preventedCalories = 250 }
-            else if lowerInput.contains("天ぷら") { preventedCalories = 350 }
-            else if lowerInput.contains("フライドチキン") { preventedCalories = 400 }
-            
-        } else if alcoholKeywords.contains(where: { lowerInput.contains($0) }) {
-            preventedCalories = 150 // アルコールの基本カロリー
-            foodCategory = "アルコール"
-            
-            if lowerInput.contains("ビール") { preventedCalories = 200 }
-            else if lowerInput.contains("ワイン") { preventedCalories = 120 }
-            else if lowerInput.contains("日本酒") { preventedCalories = 180 }
-            
-        } else {
-            // その他の食べ物
-            preventedCalories = 150
-            foodCategory = "その他"
-        }
-        
-        // 深夜食の場合は1.5倍のカロリー
-        if hasTimeContext && preventedCalories > 0 {
-            preventedCalories = Int(Double(preventedCalories) * 1.5)
-            if preventedCalories < 500 {
-                preventedCalories = 500 // 深夜食の最小カロリー
+        for category in foodCategories {
+            if category.keywords.contains(where: { input.contains($0) }) {
+                let baseCalories = calculateSpecificCalories(for: input, in: category)
+                let finalCalories = hasTimeContext ? applyLateNightMultiplier(baseCalories) : baseCalories
+                
+                return CalorieAnalysis(
+                    preventedCalories: finalCalories,
+                    foodCategory: category.name
+                )
             }
         }
         
-        // メッセージとタイプの決定
-        if hasPositiveAction {
-            let achievementMessages = [
+        // その他の食べ物
+        let defaultCalories = hasTimeContext ? 500 : 150
+        return CalorieAnalysis(
+            preventedCalories: defaultCalories,
+            foodCategory: "その他"
+        )
+    }
+    
+    private func calculateSpecificCalories(for input: String, in category: AIConstants.FoodCategory) -> Int {
+        // 具体的な食べ物による調整
+        for (keyword, calories) in category.specificItems {
+            if input.contains(keyword) {
+                return calories
+            }
+        }
+        return category.baseCalories
+    }
+    
+    private func applyLateNightMultiplier(_ calories: Int) -> Int {
+        let multipliedCalories = Int(Double(calories) * AIConstants.lateNightMultiplier)
+        return max(multipliedCalories, AIConstants.minimumLateNightCalories)
+    }
+    
+    private func determineMessageType(from analysis: KeywordAnalysis) -> AIFeedback.FeedbackType {
+        if analysis.hasPositiveAction {
+            return .achievement
+        } else if analysis.hasEmotionalTrigger {
+            return .support
+        } else if analysis.hasTimeContext {
+            return .warning
+        } else {
+            return .encouragement
+        }
+    }
+    
+    private func generateMessage(
+        for type: AIFeedback.FeedbackType,
+        foodCategory: String,
+        preventedCalories: Int,
+        hasTimeContext: Bool
+    ) -> String {
+        switch type {
+        case .achievement:
+            return generateAchievementMessage(
+                foodCategory: foodCategory,
+                preventedCalories: preventedCalories,
+                hasTimeContext: hasTimeContext
+            )
+        case .support:
+            return AIConstants.Messages.support.randomElement() ?? ""
+        case .warning:
+            return AIConstants.Messages.warning(foodCategory: foodCategory).randomElement() ?? ""
+        case .encouragement:
+            return AIConstants.Messages.encouragement.randomElement() ?? ""
+        }
+    }
+    
+    private func generateAchievementMessage(
+        foodCategory: String,
+        preventedCalories: Int,
+        hasTimeContext: Bool
+    ) -> String {
+        if hasTimeContext {
+            return AIConstants.Messages.lateNightAchievement(
+                foodCategory: foodCategory,
+                preventedCalories: preventedCalories
+            ).randomElement() ?? ""
+        } else {
+            return AIConstants.Messages.achievement(
+                foodCategory: foodCategory,
+                preventedCalories: preventedCalories
+            ).randomElement() ?? ""
+        }
+    }
+}
+
+// MARK: - Analysis Data Structures
+
+private struct KeywordAnalysis {
+    let hasPositiveAction: Bool
+    let hasTimeContext: Bool
+    let hasEmotionalTrigger: Bool
+}
+
+private struct CalorieAnalysis {
+    let preventedCalories: Int
+    let foodCategory: String
+}
+
+// MARK: - AI Constants
+
+private enum AIConstants {
+    static let lateNightMultiplier: Double = 1.5
+    static let minimumLateNightCalories: Int = 500
+    
+    enum Keywords {
+        static let positive = ["我慢", "やめた", "控えた", "断った", "抑えた", "我慢した", "やめました", "控えました", "断りました", "抑えました"]
+        static let time = ["深夜", "夜中", "夜遅く", "夜食", "夜更かし", "2時", "3時", "4時", "12時", "1時"]
+        static let emotional = ["ストレス", "イライラ", "落ち込み", "不安", "疲れ", "憂鬱", "つらい", "辛い"]
+    }
+    
+    struct FoodCategory {
+        let name: String
+        let keywords: [String]
+        let baseCalories: Int
+        let specificItems: [String: Int]
+    }
+    
+    enum FoodCategories {
+        static let sweets = FoodCategory(
+            name: "甘い物",
+            keywords: ["アイス", "チョコ", "チョコレート", "ケーキ", "クッキー", "クリーム", "甘い", "デザート", "お菓子"],
+            baseCalories: 300,
+            specificItems: [
+                "アイス": 250,
+                "チョコ": 200,
+                "ケーキ": 400,
+                "クッキー": 150,
+                "クリーム": 350
+            ]
+        )
+        
+        static let snacks = FoodCategory(
+            name: "スナック",
+            keywords: ["スナック", "ポテチ", "ポテトチップス", "せんべい", "クラッカー", "ビスケット"],
+            baseCalories: 200,
+            specificItems: [
+                "ポテチ": 350,
+                "ポテトチップス": 350,
+                "せんべい": 180
+            ]
+        )
+        
+        static let drinks = FoodCategory(
+            name: "甘い飲み物",
+            keywords: ["ジュース", "炭酸", "コーラ", "ソーダ", "甘い飲み物", "砂糖入り"],
+            baseCalories: 120,
+            specificItems: [
+                "コーラ": 140,
+                "ジュース": 100
+            ]
+        )
+        
+        static let fastFood = FoodCategory(
+            name: "ファストフード",
+            keywords: ["ファストフード", "ハンバーガー", "フライドポテト", "ピザ", "ラーメン", "コンビニ弁当"],
+            baseCalories: 600,
+            specificItems: [
+                "ハンバーガー": 500,
+                "ピザ": 700,
+                "ラーメン": 550,
+                "コンビニ弁当": 450
+            ]
+        )
+        
+        static let friedFood = FoodCategory(
+            name: "揚げ物",
+            keywords: ["揚げ物", "フライ", "天ぷら", "から揚げ", "唐揚げ", "フライドチキン"],
+            baseCalories: 300,
+            specificItems: [
+                "から揚げ": 250,
+                "唐揚げ": 250,
+                "天ぷら": 350,
+                "フライドチキン": 400
+            ]
+        )
+        
+        static let alcohol = FoodCategory(
+            name: "アルコール",
+            keywords: ["酒", "ビール", "ワイン", "日本酒", "焼酎", "ウイスキー", "お酒", "飲酒"],
+            baseCalories: 150,
+            specificItems: [
+                "ビール": 200,
+                "ワイン": 120,
+                "日本酒": 180
+            ]
+        )
+        
+        static let all: [FoodCategory] = [sweets, snacks, drinks, fastFood, friedFood, alcohol]
+    }
+    
+    enum Messages {
+        static let support = [
+            "辛い時もありますよね。感情に流されず、一歩ずつ進んでいきましょう。",
+            "ストレスを感じている時は誰にでもあります。無理せず、自分に優しくしてくださいね。",
+            "今日は少し休んでも良いかもしれません。明日からまた頑張りましょう。",
+            "気持ちを理解しています。食べることで解決しようとする気持ち、よくわかります。",
+            "感情的になる時は、深呼吸して少し時間を置いてみてください。"
+        ]
+        
+        static let encouragement = [
+            "今日の行動を記録してくれて、ありがとうございます。意識することが第一歩です。",
+            "継続することが大切です。小さな気づきも貴重な記録です。",
+            "自分の行動パターンを見つめ直すことは素晴らしいことです。",
+            "記録を続けることで、必ず変化が見えてきます。",
+            "今日も一日お疲れ様でした。明日も無理のない範囲で頑張りましょう。"
+        ]
+        
+        static func achievement(foodCategory: String, preventedCalories: Int) -> [String] {
+            return [
                 "素晴らしい自制心ですね！\(foodCategory)を我慢できて立派です。",
                 "よく我慢できましたね。\(preventedCalories)kcalも防げて、体も喜んでいるはずです。",
                 "その判断力、とても立派です！\(foodCategory)を控えて健康的な選択をしました。",
                 "自分をコントロールできる力、すごいですね。継続していきましょう。",
                 "我慢できたことは大きな成功です。\(preventedCalories)kcalの節約になりました！"
             ]
-            
-            if hasTimeContext {
-                let lateNightMessages = [
-                    "深夜の誘惑に負けず、素晴らしい自制心です！\(preventedCalories)kcalも防げました。",
-                    "夜遅い時間の\(foodCategory)を我慢できて立派です。良い判断でした。",
-                    "深夜の食事は特に太りやすいので、我慢できたのは大きな成果です。"
-                ]
-                return (lateNightMessages.randomElement()!, preventedCalories, .achievement)
-            }
-            
-            return (achievementMessages.randomElement()!, preventedCalories, .achievement)
-            
-        } else if hasEmotionalTrigger {
-            let supportMessages = [
-                "辛い時もありますよね。感情に流されず、一歩ずつ進んでいきましょう。",
-                "ストレスを感じている時は誰にでもあります。無理せず、自分に優しくしてくださいね。",
-                "今日は少し休んでも良いかもしれません。明日からまた頑張りましょう。",
-                "気持ちを理解しています。食べることで解決しようとする気持ち、よくわかります。",
-                "感情的になる時は、深呼吸して少し時間を置いてみてください。"
+        }
+        
+        static func lateNightAchievement(foodCategory: String, preventedCalories: Int) -> [String] {
+            return [
+                "深夜の誘惑に負けず、素晴らしい自制心です！\(preventedCalories)kcalも防げました。",
+                "夜遅い時間の\(foodCategory)を我慢できて立派です。良い判断でした。",
+                "深夜の食事は特に太りやすいので、我慢できたのは大きな成果です。"
             ]
-            return (supportMessages.randomElement()!, 0, .support)
-            
-        } else if hasTimeContext {
-            let warningMessages = [
+        }
+        
+        static func warning(foodCategory: String) -> [String] {
+            return [
                 "深夜の食事は体に負担をかけがちです。できるだけ控えめにしましょう。",
                 "夜遅い時間の\(foodCategory)は特に注意が必要です。明日に備えて休息を取りましょう。",
                 "夜食は睡眠の質にも影響します。水分補給程度にとどめることをお勧めします。"
             ]
-            return (warningMessages.randomElement()!, 0, .warning)
-            
-        } else {
-            let encouragementMessages = [
-                "今日の行動を記録してくれて、ありがとうございます。意識することが第一歩です。",
-                "継続することが大切です。小さな気づきも貴重な記録です。",
-                "自分の行動パターンを見つめ直すことは素晴らしいことです。",
-                "記録を続けることで、必ず変化が見えてきます。",
-                "今日も一日お疲れ様でした。明日も無理のない範囲で頑張りましょう。"
-            ]
-            return (encouragementMessages.randomElement()!, preventedCalories, .encouragement)
         }
     }
 }
