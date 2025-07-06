@@ -90,22 +90,41 @@ struct LogDetailView: View {
                     }
                 }
                 
-                // 防いだカロリー
+                // 防いだカロリー（強調表示）
                 if let calories = log.preventedCalories {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("防いだカロリー")
                             .font(.headline)
                         HStack {
                             Image(systemName: "flame.fill")
+                                .font(.title)
                                 .foregroundColor(.orange)
-                            Text("\(calories) kcal")
-                                .font(.title2)
-                                .bold()
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(calories) kcal")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.green)
+                                Text("節約できました！")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
                             Spacer()
+                            
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.green)
                         }
                         .padding()
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.green.opacity(0.1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.green.opacity(0.3), lineWidth: 2)
+                                )
+                        )
                     }
                 }
                 
