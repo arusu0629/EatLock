@@ -1,0 +1,186 @@
+import Foundation
+import CoreML
+import os.log
+
+// MARK: - LocalAIService
+
+/// ローカルAI推論サービスの実装
+final class LocalAIService: AIService {
+    
+    // MARK: - Properties
+    
+    private let logger = Logger(subsystem: "com.eatlock.ai", category: "LocalAIService")
+    private var mlModel: MLModel?
+    private var _isInitialized = false
+    
+    var isInitialized: Bool {
+        return _isInitialized
+    }
+    
+    // MARK: - Initialization
+    
+    init() {
+        logger.info("LocalAIService initialized")
+    }
+    
+    // MARK: - AIService Protocol
+    
+    func initialize() async -> Result<Void, AIError> {
+        logger.info("Starting AI model initialization")
+        
+        do {
+            // モデルファイルの存在確認
+            guard let modelPath = Bundle.main.path(forResource: "EatLockModel", ofType: "mlpackage") else {
+                logger.warning("Model file not found - using dummy implementation")
+                return await initializeDummyModel()
+            }
+            
+            // モデルの読み込み
+            let modelURL = URL(fileURLWithPath: modelPath)
+            let model = try MLModel(contentsOf: modelURL)
+            
+            self.mlModel = model
+            self._isInitialized = true
+            
+            logger.info("AI model initialized successfully")
+            return .success(())
+            
+        } catch {
+            logger.error("Failed to initialize AI model: \(error.localizedDescription)")
+            
+            // 失敗時はダミーモデルで初期化
+            return await initializeDummyModel()
+        }
+    }
+    
+    func generateFeedback(for input: String) async -> Result<AIFeedback, AIError> {
+        guard isInitialized else {
+            logger.error("AI model not initialized")
+            return .failure(.modelNotInitialized)
+        }
+        
+        logger.info("Generating feedback for input: \(input.prefix(50))...")
+        
+        // 入力の検証
+        guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            logger.warning("Empty input provided")
+            return .failure(.inputProcessingFailed)
+        }
+        
+        // モデルが利用可能な場合は実際の推論を実行
+        if let model = mlModel {
+            return await generateRealFeedback(for: input, using: model)
+        } else {
+            // ダミー実装
+            return await generateDummyFeedback(for: input)
+        }
+    }
+    
+    func unload() {
+        logger.info("Unloading AI model")
+        mlModel = nil
+        _isInitialized = false
+    }
+    
+    // MARK: - Private Methods
+    
+    private func initializeDummyModel() async -> Result<Void, AIError> {
+        logger.info("Initializing dummy AI model")
+        
+        // ダミーモデルの初期化をシミュレート
+        try? await Task.sleep(for: .milliseconds(500))
+        
+        self._isInitialized = true
+        logger.info("Dummy AI model initialized successfully")
+        
+        return .success(())
+    }
+    
+    private func generateRealFeedback(for input: String, using model: MLModel) async -> Result<AIFeedback, AIError> {
+        // 実際のモデルを使用した推論処理
+        // 現在は未実装のため、ダミーフィードバックを返す
+        logger.info("Using real AI model for feedback generation")
+        return await generateDummyFeedback(for: input)
+    }
+    
+    private func generateDummyFeedback(for input: String) async -> Result<AIFeedback, AIError> {
+        logger.info("Generating dummy feedback")
+        
+        // 推論処理をシミュレート
+        try? await Task.sleep(for: .milliseconds(200))
+        
+        // 入力テキストの分析（簡易版）
+        let analysis = analyzeDummyInput(input)
+        
+        let feedback = AIFeedback(
+            message: analysis.message,
+            preventedCalories: analysis.preventedCalories,
+            type: analysis.type,
+            generatedAt: Date()
+        )
+        
+        logger.info("Dummy feedback generated: \(feedback.message)")
+        return .success(feedback)
+    }
+    
+    private func analyzeDummyInput(_ input: String) -> (message: String, preventedCalories: Int, type: AIFeedback.FeedbackType) {
+        let lowerInput = input.lowercased()
+        
+        // キーワード分析
+        let positiveKeywords = ["我慢", "やめた", "控えた", "断った", "抑えた"]
+        let foodKeywords = ["アイス", "チョコ", "ケーキ", "スナック", "菓子", "デザート", "揚げ物", "ジュース"]
+        let emotionalKeywords = ["ストレス", "イライラ", "落ち込み", "不安"]
+        
+        let hasPositiveAction = positiveKeywords.contains { lowerInput.contains($0) }
+        let hasFood = foodKeywords.contains { lowerInput.contains($0) }
+        let hasEmotionalTrigger = emotionalKeywords.contains { lowerInput.contains($0) }
+        
+        // カロリー推定
+        var preventedCalories = 0
+        if hasFood {
+            switch true {
+            case lowerInput.contains("アイス"):
+                preventedCalories = 250
+            case lowerInput.contains("チョコ"):
+                preventedCalories = 150
+            case lowerInput.contains("ケーキ"):
+                preventedCalories = 400
+            case lowerInput.contains("スナック"):
+                preventedCalories = 200
+            case lowerInput.contains("揚げ物"):
+                preventedCalories = 300
+            case lowerInput.contains("ジュース"):
+                preventedCalories = 120
+            default:
+                preventedCalories = 180
+            }
+        }
+        
+        // メッセージとタイプの決定
+        if hasPositiveAction {
+            let messages = [
+                "素晴らしい自制心ですね！その調子で頑張りましょう。",
+                "よく我慢できましたね。きっと体も喜んでいるはずです。",
+                "その判断力、とても立派です！継続していきましょう。",
+                "自分をコントロールできる力、すごいですね。"
+            ]
+            return (messages.randomElement()!, preventedCalories, .achievement)
+        } else if hasEmotionalTrigger {
+            let messages = [
+                "辛い時もありますよね。一歩ずつ、無理せず進んでいきましょう。",
+                "感情的になる時は誰にでもあります。大丈夫ですよ。",
+                "今日は少し休んでも良いかもしれません。明日からまた頑張りましょう。",
+                "気持ちを理解しています。一緒に乗り越えていきましょう。"
+            ]
+            return (messages.randomElement()!, 0, .support)
+        } else {
+            let messages = [
+                "今日の行動を記録してくれて、ありがとうございます。",
+                "継続することが大切です。今日もお疲れ様でした。",
+                "小さな一歩も大切な進歩です。",
+                "自分の行動を見つめ直すことは素晴らしいことです。"
+            ]
+            return (messages.randomElement()!, preventedCalories, .encouragement)
+        }
+    }
+}

@@ -123,21 +123,30 @@ struct ContentView: View {
             return
         }
         
-        do {
-            _ = try repository.createActionLog(content: content, logType: selectedLogType)
-            newLogContent = ""
-            selectedLogType = .other
-            
-            // 入力成功時のハプティックフィードバック
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            
-            // 成功時のToast表示
-            showToast(message: "行動ログを保存しました", type: .success)
-            
-        } catch {
-            // エラー時のToast表示
-            showToast(message: error.localizedDescription, type: .error)
+        // AIフィードバック付きでログを作成
+        Task {
+            do {
+                _ = try await repository.createActionLogWithAIFeedback(content: content, logType: selectedLogType)
+                
+                // メインスレッドでUI更新
+                await MainActor.run {
+                    newLogContent = ""
+                    selectedLogType = .other
+                    
+                    // 入力成功時のハプティックフィードバック
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                    
+                    // 成功時のToast表示
+                    showToast(message: "行動ログを保存しました", type: .success)
+                }
+                
+            } catch {
+                // エラー時のToast表示
+                await MainActor.run {
+                    showToast(message: error.localizedDescription, type: .error)
+                }
+            }
         }
     }
     
