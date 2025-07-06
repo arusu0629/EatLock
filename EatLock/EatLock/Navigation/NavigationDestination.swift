@@ -80,13 +80,23 @@ struct LogDetailView: View {
                 // AIフィードバック
                 if let feedback = repository.getSecureAIFeedback(for: log) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("AIフィードバック")
-                            .font(.headline)
+                        HStack {
+                            Image(systemName: "brain.head.profile")
+                                .foregroundColor(.blue)
+                            Text("AIフィードバック")
+                                .font(.headline)
+                        }
                         Text(feedback)
                             .font(.body)
                             .padding()
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.blue.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
                     }
                 }
                 
