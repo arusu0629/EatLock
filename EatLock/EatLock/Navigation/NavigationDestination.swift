@@ -26,7 +26,7 @@ extension NavigationDestination {
         case .home:
             ContentView()
         case .logDetail(let log):
-            LogDetailView(log: log, repository: repository)
+            LogDetailModalView(log: log, repository: repository)
         case .settings:
             SettingsView()
         case .statistics:
