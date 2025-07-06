@@ -30,11 +30,23 @@ struct TitleBarView: View {
             
             Spacer()
             
-            // 日付表示
-            Text(formatDate(currentDate))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .accessibilityLabel("今日の日付: \(formatDate(currentDate))")
+            // 日付表示とAIステータス
+            HStack(spacing: 12) {
+                Text(formatDate(currentDate))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .accessibilityLabel("今日の日付: \(formatDate(currentDate))")
+                
+                // AIステータスインジケーター
+                HStack(spacing: 4) {
+                    Text("AI")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    AIStatusIndicator()
+                }
+                .accessibilityLabel("AI機能の状態")
+            }
         }
         .padding(.horizontal)
         .padding(.vertical, 12)

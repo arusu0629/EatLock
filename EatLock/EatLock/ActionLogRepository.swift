@@ -88,6 +88,18 @@ class ActionLogRepository {
     
     // MARK: - Create
     
+    /// 新しい行動ログを作成（AIフィードバックを自動生成）
+    @MainActor
+    func createActionLogWithAIFeedback(content: String, logType: LogType = .other) async throws -> ActionLog {
+        // 基本的な行動ログを作成
+        let actionLog = try createActionLog(content: content, logType: logType)
+        
+        // AIフィードバックを生成
+        await generateAIFeedback(for: actionLog)
+        
+        return actionLog
+    }
+    
     /// 新しい行動ログを作成
     func createActionLog(content: String, logType: LogType = .other) throws -> ActionLog {
         // 入力バリデーション
@@ -378,6 +390,58 @@ class ActionLogRepository {
             return ActionLog.calculateStats(from: logs)
         } catch {
             throw ActionLogError.statisticsCalculationFailed(error)
+        }
+    }
+    
+    // MARK: - AI Feedback Generation
+    
+    /// ActionLogに対してAIフィードバックを生成
+    @MainActor
+    func generateAIFeedback(for actionLog: ActionLog) async {
+        // 暗号化されたコンテンツを取得
+        let content = getSecureContent(for: actionLog)
+        
+        // AIフィードバックを生成
+        let result = await AIManager.shared.generateFeedback(for: content)
+        
+        switch result {
+        case .success(let feedback):
+            // AIフィードバックを保存
+            do {
+                try setAIFeedback(for: actionLog, feedback: feedback.message, preventedCalories: feedback.preventedCalories)
+            } catch {
+                print("AIフィードバックの保存に失敗しました: \(error)")
+            }
+        case .failure(let error):
+            print("AIフィードバックの生成に失敗しました: \(error)")
+        }
+    }
+    
+    /// 複数のActionLogに対してAIフィードバックを一括生成
+    @MainActor
+    func generateAIFeedbackBatch(for actionLogs: [ActionLog]) async {
+        for actionLog in actionLogs {
+            await generateAIFeedback(for: actionLog)
+            // 連続リクエストを避けるため少し待機
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+    
+    /// AIフィードバックが未生成のActionLogを取得
+    func fetchActionLogsWithoutAIFeedback() throws -> [ActionLog] {
+        let predicate = #Predicate<ActionLog> { log in
+            log.aiFeedback == nil && log.encryptedAIFeedback == nil
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
         }
     }
     
