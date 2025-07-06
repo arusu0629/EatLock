@@ -101,7 +101,7 @@ final class AIEngine: ObservableObject {
             performanceMetrics = metrics
             
             // ログにパフォーマンス情報を記録
-            logger.info("Feedback generation completed - Duration: \(metrics.duration)ms, Memory: \(metrics.memoryUsage)MB")
+            logger.info("Feedback generation completed - Duration: \(metrics.formattedDuration), Memory: \(metrics.formattedMemoryUsage)")
             
             switch result {
             case .success(let feedback):
