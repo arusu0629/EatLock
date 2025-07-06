@@ -65,4 +65,4 @@ auto_fix:
   # 自動修正を有効にする
   enabled: true
   # 安全な修正のみ実行
-  safe_only: true 
+  safe_only: true
