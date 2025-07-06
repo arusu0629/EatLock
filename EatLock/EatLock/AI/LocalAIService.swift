@@ -41,9 +41,23 @@ final class LocalAIService: AIService {
             logger.info("Attempting to initialize Foundation Model")
             
             // Foundation Model の初期化（実際のAPIが利用可能な場合）
-            // 現在は開発中のため、ダミー実装を使用
-            logger.info("Foundation Model initialized successfully")
+            // Note: 実際のFoundation Model APIが利用可能になったら、以下のような実装を行う
+            // if let model = try? FoundationModel(configuration: .default) {
+            //     self.foundationModel = model
+            //     self._isInitialized = true
+            //     logger.info("Foundation Model initialized successfully")
+            //     return .success(())
+            // } else {
+            //     logger.error("Failed to initialize Foundation Model")
+            //     return .failure(.modelInitializationFailed)
+            // }
+            
+            // 現在は開発中のため、ダミーFoundation Modelインスタンスを作成
+            // 実際のAPIが利用可能になるまでの暫定的な実装
+            logger.info("Creating dummy Foundation Model instance for development")
+            // foundationModel = DummyFoundationModel() // 実際の実装時に置き換え
             self._isInitialized = true
+            logger.info("Foundation Model initialized successfully (development mode)")
             return .success(())
             
             #else
@@ -91,12 +105,9 @@ final class LocalAIService: AIService {
         
         // モデルが利用可能な場合は実際の推論を実行
         #if canImport(FoundationModel)
-        if let foundationModel = foundationModel {
-            return await generateFoundationModelFeedback(for: input)
-        } else {
-            // Foundation Model が利用できない場合はダミー実装
-            return await generateDummyFeedback(for: input)
-        }
+        // Foundation Model フレームワークが利用可能な場合の処理
+        // 現在は開発モードのため、Foundation Model の推論をシミュレート
+        return await generateFoundationModelFeedback(for: input)
         #else
         if let model = mlModel {
             return await generateRealFeedback(for: input, using: model)
@@ -142,8 +153,29 @@ final class LocalAIService: AIService {
         // Foundation Model を使用した推論処理
         logger.info("Using Foundation Model for feedback generation")
         
-        // Foundation Model の推論処理をシミュレート
+        // 実際のFoundation Model APIが利用可能になったら、以下のような実装を行う
+        // guard let model = foundationModel else {
+        //     logger.error("Foundation Model not initialized")
+        //     return .failure(.modelNotInitialized)
+        // }
+        // 
+        // do {
+        //     let prompt = "User input: \(input)\nProvide encouraging feedback for eating behavior control:"
+        //     let response = try await model.generate(prompt: prompt)
+        //     let feedback = parseFoundationModelResponse(response)
+        //     return .success(feedback)
+        // } catch {
+        //     logger.error("Foundation Model inference failed: \(error)")
+        //     return .failure(.predictionFailed)
+        // }
+        
+        // 現在は開発モードのため、Foundation Model の推論をシミュレート
+        logger.info("Simulating Foundation Model inference (development mode)")
         try? await Task.sleep(for: .milliseconds(300))
+        
+        // より詳細なログ出力で推論プロセスを示す
+        logger.debug("Foundation Model processing input: \(input.prefix(50))...")
+        logger.debug("Foundation Model generating contextual response...")
         
         // 実際のFoundation Model APIの実装が完了するまで、ダミーフィードバックを返す
         return await generateDummyFeedback(for: input)
