@@ -98,6 +98,8 @@ struct LogInputView: View {
         !newLogContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
+    /// Handles the log submission action with a button press animation and a short delay before invoking the submit closure.
+    /// Triggers the `onSubmit` callback if submission is enabled, and animates the button to provide visual feedback.
     private func handleSubmit() {
         guard isSubmitEnabled else { return }
         
@@ -117,6 +119,8 @@ struct LogInputView: View {
         }
     }
     
+    /// Sets up observers to adjust the view's keyboard height state when the keyboard appears or disappears.
+    /// Updates the `keyboardHeight` property to ensure the input view remains visible above the keyboard.
     private func setupKeyboardObservers() {
         NotificationCenter.default.addObserver(
             forName: UIResponder.keyboardWillShowNotification,
@@ -144,6 +148,7 @@ struct LogInputView: View {
         }
     }
     
+    /// Removes observers for keyboard show and hide notifications from the notification center.
     private func removeKeyboardObservers() {
         NotificationCenter.default.removeObserver(
             self,

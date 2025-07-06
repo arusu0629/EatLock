@@ -92,6 +92,9 @@ struct ContentView: View {
         isRepositoryInitialized = true
     }
     
+    /// Attempts to add a new action log entry using the current input content and selected log type.
+    /// 
+    /// If the input is empty or the repository is not initialized, the function exits early and may display an error alert. On successful creation, the input fields are reset and light haptic feedback is triggered. If an error occurs during log creation, an alert is shown with the error message.
     private func addActionLog() {
         let content = newLogContent.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
