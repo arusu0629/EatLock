@@ -25,11 +25,21 @@ class ActionLogRepository {
     
     /// 新しい行動ログを作成
     func createActionLog(content: String, logType: LogType = .other) throws -> ActionLog {
-        let actionLog = ActionLog(content: content, logType: logType)
+        // 入力バリデーション
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedContent.isEmpty else {
+            throw ActionLogError.validationFailed("行動ログの内容が空です")
+        }
+        
+        guard trimmedContent.count <= 500 else {
+            throw ActionLogError.validationFailed("行動ログの内容が上限（500文字）を超えています")
+        }
+        
+        let actionLog = ActionLog(content: trimmedContent, logType: logType)
         
         // コンテンツを暗号化して、プレーンテキストをクリア
         do {
-            let encryptedContent = try dataSecurityManager.encryptString(content, using: encryptionKey)
+            let encryptedContent = try dataSecurityManager.encryptString(trimmedContent, using: encryptionKey)
             actionLog.encryptedContent = encryptedContent
             // 暗号化成功後、データベース保存用にプレーンテキストをクリア
             actionLog.content = ""
@@ -345,6 +355,7 @@ enum ActionLogError: LocalizedError {
     case deleteFailed(Error)
     case statisticsCalculationFailed(Error)
     case encryptionFailed(Error)
+    case validationFailed(String)
     case notFound
     
     var errorDescription: String? {
@@ -361,6 +372,8 @@ enum ActionLogError: LocalizedError {
             return "統計情報の計算に失敗しました: \(error.localizedDescription)"
         case .encryptionFailed(let error):
             return "データの暗号化に失敗しました: \(error.localizedDescription)"
+        case .validationFailed(let message):
+            return message
         case .notFound:
             return "指定された行動ログが見つかりません"
         }

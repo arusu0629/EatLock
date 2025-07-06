@@ -8,6 +8,8 @@ reviews:
   # 自動レビューの設定（オブジェクト形式）
   auto_review:
     enabled: true
+    # 自動レビューを実行する対象ブランチパターン
+    base_branches: ["feature/*", "bugfix/*", "hotfix/*"]
     # レビューをトリガーする条件
     on_push: true
     on_pull_request: true
