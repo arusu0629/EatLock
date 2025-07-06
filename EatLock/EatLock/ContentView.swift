@@ -34,33 +34,47 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // カスタムタイトルバー
-            TitleBarView()
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // カスタムタイトルバー
+                TitleBarView()
+                    .background(Color(.systemBackground))
+                    .shadow(radius: 1)
+                    .zIndex(1)
+                
+                // メインコンテンツ
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // 統計カード
+                        StatsCardView(stats: calculateStats())
+                        
+                        // 行動ログ一覧
+                        LogListView(
+                            actionLogs: actionLogs,
+                            repository: repository,
+                            onDelete: deleteActionLogs
+                        )
+                        
+                        // 下部の余白（入力欄の分）
+                        Color.clear
+                            .frame(height: 140)
+                    }
+                    .padding(.horizontal)
+                }
+                
+                // 下部固定入力欄
+                VStack(spacing: 0) {
+                    LogInputView(
+                        newLogContent: $newLogContent,
+                        selectedLogType: $selectedLogType,
+                        onSubmit: addActionLog
+                    )
+                }
                 .background(Color(.systemBackground))
-                .shadow(radius: 1)
-            
-            // メインコンテンツ
-            VStack {
-                // 統計カード
-                StatsCardView(stats: calculateStats())
-                
-                // 行動ログ一覧
-                LogListView(
-                    actionLogs: actionLogs,
-                    repository: repository,
-                    onDelete: deleteActionLogs
-                )
-                
-                // 入力欄（下部固定風）
-                LogInputView(
-                    newLogContent: $newLogContent,
-                    selectedLogType: $selectedLogType,
-                    onSubmit: addActionLog
-                )
             }
         }
         .navigationBarHidden(true)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
             setupRepository()
             checkTutorialNeeded()
@@ -92,6 +106,11 @@ struct ContentView: View {
             _ = try repository.createActionLog(content: content, logType: selectedLogType)
             newLogContent = ""
             selectedLogType = .other
+            
+            // 入力成功時のハプティックフィードバック
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            
         } catch {
             alertMessage = error.localizedDescription
             showingAlert = true
