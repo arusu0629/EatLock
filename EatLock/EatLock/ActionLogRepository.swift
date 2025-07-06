@@ -89,6 +89,7 @@ class ActionLogRepository {
     // MARK: - Create
     
     /// 新しい行動ログを作成（AIフィードバックを自動生成）
+    @MainActor
     func createActionLogWithAIFeedback(content: String, logType: LogType = .other) async throws -> ActionLog {
         // 基本的な行動ログを作成
         let actionLog = try createActionLog(content: content, logType: logType)
