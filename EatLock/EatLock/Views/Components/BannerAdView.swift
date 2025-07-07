@@ -12,6 +12,7 @@ import GoogleMobileAds
 struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
     let adSize: GADAdSize
+    let onRetry: (() -> Void)?
     
     @StateObject private var adManager = AdManager.shared
     
@@ -22,9 +23,11 @@ struct BannerAdView: UIViewRepresentable {
     /// - Parameters:
     ///   - adUnitID: 広告ユニットID。指定しない場合はテスト広告IDを使用
     ///   - adSize: 広告サイズ。デフォルトはバナーサイズ
-    init(adUnitID: String? = nil, adSize: GADAdSize = GADAdSizeBanner) {
+    ///   - onRetry: リトライ時のコールバック
+    init(adUnitID: String? = nil, adSize: GADAdSize = GADAdSizeBanner, onRetry: (() -> Void)? = nil) {
         self.adUnitID = adUnitID ?? Self.testAdUnitID
         self.adSize = adSize
+        self.onRetry = onRetry
     }
     
     func makeUIView(context: Context) -> GADBannerView {
@@ -44,6 +47,11 @@ struct BannerAdView: UIViewRepresentable {
             uiView.adUnitID = adUnitID
             adManager.loadBannerAd(for: uiView)
         }
+    }
+    
+    /// 広告を再読み込み
+    func retryAd(for bannerView: GADBannerView) {
+        adManager.loadBannerAd(for: bannerView)
     }
 }
 
@@ -124,6 +132,7 @@ struct AdaptiveBannerAdView: View {
     let adUnitID: String?
     
     @StateObject private var adManager = AdManager.shared
+    @State private var retryTrigger = false
     
     init(adUnitID: String? = nil) {
         self.adUnitID = adUnitID
@@ -142,10 +151,12 @@ struct AdaptiveBannerAdView: View {
                 case .loaded:
                     BannerAdView(adUnitID: adUnitID)
                         .frame(height: 50)
+                        .id(retryTrigger) // トリガーでビューを再生成
                 case .failed(let error):
                     AdErrorView(error: error) {
                         // 広告読み込みを再試行
-                        adManager.retryAdLoading()
+                        adManager.resetAdLoadingState()
+                        retryTrigger.toggle() // ビューの再生成をトリガー
                     }
                 }
             }

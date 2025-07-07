@@ -22,6 +22,9 @@ protocol AdServiceProtocol {
     
     /// 広告読み込み状態の通知
     var adLoadingStatePublisher: Published<AdLoadingState>.Publisher { get }
+    
+    /// 広告読み込み状態をリセット
+    func resetAdLoadingState()
 }
 
 /// 広告読み込み状態
@@ -42,8 +45,6 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     var adLoadingStatePublisher: Published<AdLoadingState>.Publisher {
         return $adLoadingState
     }
-    
-    private weak var currentBannerView: GADBannerView?
     
     private lazy var testDeviceIds: [String] = {
         return [
@@ -86,28 +87,15 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     /// バナー広告を読み込み
     func loadBannerAd(for view: GADBannerView) {
         adLoadingState = .loading
-        currentBannerView = view
         
         let request = GADRequest()
         view.delegate = self
         view.load(request)
     }
     
-    /// 広告読み込みを再試行
-    func retryAdLoading() {
-        guard let bannerView = currentBannerView else {
-            // 現在のバナービューが存在しない場合は、新しいバナービューを作成
-            let newBannerView = GADBannerView(adSize: GADAdSizeBanner)
-            newBannerView.adUnitID = BannerAdView.testAdUnitID
-            newBannerView.rootViewController = UIApplication.shared.activeWindow?.rootViewController
-            loadBannerAd(for: newBannerView)
-            return
-        }
-        
-        adLoadingState = .loading
-        let request = GADRequest()
-        bannerView.delegate = self
-        bannerView.load(request)
+    /// 広告読み込み状態をリセット
+    func resetAdLoadingState() {
+        adLoadingState = .idle
     }
 }
 
