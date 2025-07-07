@@ -539,7 +539,7 @@ class ActionLogRepository {
     /// 防いだカロリーが記録されているフィードバック履歴を取得
     func fetchFeedbackHistoryWithCalories() throws -> [ActionLog] {
         let predicate = #Predicate<ActionLog> { log in
-            (log.aiFeedback != nil || log.encryptedAIFeedback != nil) && log.preventedCalories != nil && log.preventedCalories! > 0
+            (log.aiFeedback != nil || log.encryptedAIFeedback != nil) && log.preventedCalories != nil && log.preventedCalories > 0
         }
         
         let descriptor = FetchDescriptor<ActionLog>(

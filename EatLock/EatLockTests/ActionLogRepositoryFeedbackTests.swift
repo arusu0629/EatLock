@@ -18,10 +18,16 @@ final class ActionLogRepositoryFeedbackTests: XCTestCase {
         super.setUp()
         
         // In-memory database for testing
-        let container = try! ModelContainer(
-            for: ActionLog.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
+        let container: ModelContainer
+        do {
+            container = try ModelContainer(
+                for: ActionLog.self,
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            )
+        } catch {
+            XCTFail("ModelContainer の作成に失敗しました: \(error)")
+            return
+        }
         modelContext = ModelContext(container)
         repository = ActionLogRepository(modelContext: modelContext)
     }
