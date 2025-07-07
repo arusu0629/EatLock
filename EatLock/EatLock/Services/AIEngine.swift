@@ -18,14 +18,16 @@ final class AIEngine: ObservableObject {
     
     private let logger = Logger(subsystem: "com.eatlock.ai", category: "AIEngine")
     private let aiService: AIService
-    private let timeoutDuration: TimeInterval = 10.0
+    private let defaultTimeoutDuration: TimeInterval = 10.0
+    private var timeoutDuration: TimeInterval
     private let performanceMonitor = PerformanceMonitor()
     
     // MARK: - Initialization
     
-    private init() {
+    private init(timeoutDuration: TimeInterval? = nil) {
         // 既存の AIService を使用
         self.aiService = LocalAIService()
+        self.timeoutDuration = timeoutDuration ?? defaultTimeoutDuration
         logger.info("AIEngine initialized")
     }
     
@@ -143,6 +145,13 @@ final class AIEngine: ObservableObject {
         isProcessing = false
         lastError = nil
         performanceMetrics = nil
+    }
+    
+    /// タイムアウト時間を設定
+    /// - Parameter timeout: タイムアウト時間（秒）
+    func setTimeoutDuration(_ timeout: TimeInterval) {
+        timeoutDuration = timeout
+        logger.info("Timeout duration set to \(timeout) seconds")
     }
     
     // MARK: - Status Properties

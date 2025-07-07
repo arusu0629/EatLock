@@ -95,7 +95,7 @@ final class LocalAIService: AIService {
             return .failure(.modelNotInitialized)
         }
         
-        logger.info("Generating feedback for input: \(input.prefix(50))...")
+        logger.info("Generating feedback for input (length: \(input.count))")
         
         // 入力の検証
         guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -174,7 +174,7 @@ final class LocalAIService: AIService {
         try? await Task.sleep(for: .milliseconds(300))
         
         // より詳細なログ出力で推論プロセスを示す
-        logger.debug("Foundation Model processing input: \(input.prefix(50))...")
+        logger.debug("Foundation Model processing input (length: \(input.count))")
         logger.debug("Foundation Model generating contextual response...")
         
         // 実際のFoundation Model APIの実装が完了するまで、ダミーフィードバックを返す
