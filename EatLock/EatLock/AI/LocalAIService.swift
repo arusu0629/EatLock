@@ -267,12 +267,12 @@ final class LocalAIService: AIService {
         return (message, calorieAnalysis.preventedCalories, messageType)
     }
     
-    /// 最適化されたキーワード分析（Set使用で高速化）
+    /// 最適化されたキーワード分析（早期終了で高速化）
     private func analyzeKeywordsOptimized(in input: String) -> KeywordAnalysis {
-        // Set.contains()はO(1)、Array.contains()はO(n)
-        let hasPositiveAction = Self.positiveKeywordSet.contains { input.contains($0) }
-        let hasTimeContext = Self.timeKeywordSet.contains { input.contains($0) }
-        let hasEmotionalTrigger = Self.emotionalKeywordSet.contains { input.contains($0) }
+        // 部分文字列マッチングのための効率的な実装（早期終了付き）
+        let hasPositiveAction = Self.positiveKeywordSet.first { input.contains($0) } != nil
+        let hasTimeContext = Self.timeKeywordSet.first { input.contains($0) } != nil
+        let hasEmotionalTrigger = Self.emotionalKeywordSet.first { input.contains($0) } != nil
         
         return KeywordAnalysis(
             hasPositiveAction: hasPositiveAction,
