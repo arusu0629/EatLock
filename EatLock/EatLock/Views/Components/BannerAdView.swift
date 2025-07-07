@@ -146,11 +146,8 @@ struct AdaptiveBannerAdView: View {
                         .frame(height: 50)
                 case .failed(let error):
                     AdErrorView(error: error) {
-                        // 広告を再読み込み
-                        let bannerView = GADBannerView(adSize: GADAdSizeBanner)
-                        bannerView.adUnitID = adUnitID ?? BannerAdView.testAdUnitID
-                        bannerView.rootViewController = UIApplication.shared.currentWindow?.rootViewController
-                        adManager.loadBannerAd(for: bannerView)
+                        // 広告読み込み状態をリセットして再試行
+                        adManager.retryAdLoading()
                     }
                 }
             }

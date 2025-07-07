@@ -93,6 +93,11 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         view.delegate = self
         view.load(request)
     }
+    
+    /// 広告読み込みを再試行
+    func retryAdLoading() {
+        adLoadingState = .loading
+    }
 }
 
 // MARK: - GADBannerViewDelegate
