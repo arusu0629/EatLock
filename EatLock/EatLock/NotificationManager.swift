@@ -174,15 +174,15 @@ final class NotificationManager: ObservableObject {
     }
     
     /// 特定のカテゴリの通知を削除
-    func removeNotifications(withCategory category: String) {
+    func removeNotifications(withCategory category: String) async {
         logger.info("Removing notifications for category: \(category)")
-        notificationCenter.getPendingNotificationRequests { requests in
-            let identifiers = requests
-                .filter { $0.content.categoryIdentifier == category }
-                .map { $0.identifier }
-            
-            self.notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
-        }
+        
+        let requests = await notificationCenter.pendingNotificationRequests()
+        let identifiers = requests
+            .filter { $0.content.categoryIdentifier == category }
+            .map { $0.identifier }
+        
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: identifiers)
     }
     
     // MARK: - Private Methods

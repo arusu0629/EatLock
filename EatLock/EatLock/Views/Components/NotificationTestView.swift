@@ -16,8 +16,7 @@ struct NotificationTestView: View {
     @State private var detailStatus: NotificationPermissionStatus?
     
     var body: some View {
-        NavigationView {
-            List {
+        List {
                 // 権限状態セクション
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
@@ -157,23 +156,22 @@ struct NotificationTestView: View {
                         Text("エラー情報")
                     }
                 }
-            }
-            .navigationTitle("通知テスト")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("更新") {
-                        Task {
-                            await updateDetailStatus()
-                        }
+        }
+        .navigationTitle("通知テスト")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("更新") {
+                    Task {
+                        await updateDetailStatus()
                     }
                 }
             }
-            .alert("通知", isPresented: $showingAlert) {
-                Button("OK") { }
-            } message: {
-                Text(alertMessage)
-            }
+        }
+        .alert("通知", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
         }
         .task {
             await updateDetailStatus()
@@ -307,5 +305,7 @@ struct DetailRow: View {
 // MARK: - Preview
 
 #Preview {
-    NotificationTestView()
+    NavigationStack {
+        NotificationTestView()
+    }
 }
