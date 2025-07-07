@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var showToast = false
     @State private var toastMessage = ""
     @State private var toastType: ToastType = .info
+    @State private var showFeedback = false
+    @State private var currentFeedback: AIFeedback?
     private let router = NavigationRouter.shared
     
     init() {
@@ -101,6 +103,18 @@ struct ContentView: View {
             }
             .allowsHitTesting(false)
         )
+        .overlay(
+            // フィードバック表示用のオーバーレイ
+            ZStack {
+                if showFeedback, let feedback = currentFeedback {
+                    FeedbackView(
+                        feedback: feedback,
+                        isPresented: $showFeedback
+                    )
+                }
+            }
+            .allowsHitTesting(showFeedback)
+        )
     }
     
     private func setupRepository() {
@@ -123,21 +137,46 @@ struct ContentView: View {
             return
         }
         
-        do {
-            _ = try repository.createActionLog(content: content, logType: selectedLogType)
-            newLogContent = ""
-            selectedLogType = .other
-            
-            // 入力成功時のハプティックフィードバック
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            
-            // 成功時のToast表示
-            showToast(message: "行動ログを保存しました", type: .success)
-            
-        } catch {
-            // エラー時のToast表示
-            showToast(message: error.localizedDescription, type: .error)
+        // AIフィードバック付きでログを作成
+        Task { @MainActor in
+            do {
+                let createdLog = try await repository.createActionLogWithAIFeedback(content: content, logType: selectedLogType)
+                
+                // UI更新（すでにMainActorで実行されている）
+                newLogContent = ""
+                selectedLogType = .other
+                
+                // 入力成功時のハプティックフィードバック
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+                
+                // AIフィードバックが生成されていれば表示
+                if let aiFeedback = repository.getSecureAIFeedback(for: createdLog) {
+                    
+                    // AIFeedbackオブジェクトを作成（preventedCaloriesがnilの場合は0を使用）
+                    let feedback = AIFeedback(
+                        message: aiFeedback,
+                        preventedCalories: createdLog.preventedCalories ?? 0,
+                        type: determineFeedbackType(for: createdLog.logType),
+                        generatedAt: createdLog.updatedAt
+                    )
+                    
+                    // 少し遅延してフィードバックを表示
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.currentFeedback = feedback
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self.showFeedback = true
+                        }
+                    }
+                } else {
+                    // AIフィードバックが生成されていない場合は通常のToast
+                    showToast(message: "行動ログを保存しました", type: .success)
+                }
+                
+            } catch {
+                // エラー時のToast表示（すでにMainActorで実行されている）
+                showToast(message: error.localizedDescription, type: .error)
+            }
         }
     }
     
@@ -167,6 +206,19 @@ struct ContentView: View {
         toastType = type
         withAnimation {
             showToast = true
+        }
+    }
+    
+    private func determineFeedbackType(for logType: LogType) -> AIFeedback.FeedbackType {
+        switch logType {
+        case .success:
+            return .achievement
+        case .failure:
+            return .support
+        case .struggle:
+            return .encouragement
+        case .other:
+            return .support
         }
     }
     

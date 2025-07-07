@@ -32,6 +32,10 @@ struct EatLockApp: App {
                         await DataSecurityManager.shared.handleAppDidBecomeActive()
                     }
                 }
+                .task {
+                    // アプリ起動時にAIを初期化
+                    await AIManager.shared.initialize()
+                }
         }
         .modelContainer(sharedModelContainer)
     }
