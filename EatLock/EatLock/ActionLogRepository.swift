@@ -488,6 +488,71 @@ class ActionLogRepository {
     func getEncryptionKey() -> Data {
         return encryptionKey
     }
+    
+    // MARK: - Feedback History Management
+    
+    /// フィードバック履歴を持つActionLogを取得
+    func fetchActionLogsWithFeedback() throws -> [ActionLog] {
+        let predicate = #Predicate<ActionLog> { log in
+            log.aiFeedback != nil || log.encryptedAIFeedback != nil
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
+    
+    /// 指定期間のフィードバック履歴を取得
+    func fetchFeedbackHistory(from startDate: Date, to endDate: Date) throws -> [ActionLog] {
+        let predicate = #Predicate<ActionLog> { log in
+            log.timestamp >= startDate && log.timestamp <= endDate && (log.aiFeedback != nil || log.encryptedAIFeedback != nil)
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
+    
+    /// 今日のフィードバック履歴を取得
+    func fetchTodaysFeedbackHistory() throws -> [ActionLog] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        return try fetchFeedbackHistory(from: startOfDay, to: endOfDay)
+    }
+    
+    /// 防いだカロリーが記録されているフィードバック履歴を取得
+    func fetchFeedbackHistoryWithCalories() throws -> [ActionLog] {
+        let predicate = #Predicate<ActionLog> { log in
+            (log.aiFeedback != nil || log.encryptedAIFeedback != nil) && log.preventedCalories != nil && log.preventedCalories > 0
+        }
+        
+        let descriptor = FetchDescriptor<ActionLog>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw ActionLogError.fetchFailed(error)
+        }
+    }
 }
 
 // MARK: - ActionLogError
