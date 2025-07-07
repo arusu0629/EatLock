@@ -43,7 +43,14 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         return $adLoadingState
     }
     
-    private var testDeviceIds: [String] = []
+    private weak var currentBannerView: GADBannerView?
+    
+    private lazy var testDeviceIds: [String] = {
+        return [
+            GADSimulatorID,  // シミュレーター用
+            // 実機のテストデバイスIDをここに追加
+        ]
+    }()
     
     /// 広告が利用可能かどうか
     var isAdAvailable: Bool {
@@ -57,15 +64,6 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     private override init() {
         super.init()
-        setupTestDeviceIds()
-    }
-    
-    /// テストデバイスIDの設定
-    private func setupTestDeviceIds() {
-        testDeviceIds = [
-            GADSimulatorID,  // シミュレーター用
-            // 実機のテストデバイスIDをここに追加
-        ]
     }
     
     /// 広告SDKを初期化
@@ -88,6 +86,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     /// バナー広告を読み込み
     func loadBannerAd(for view: GADBannerView) {
         adLoadingState = .loading
+        currentBannerView = view
         
         let request = GADRequest()
         view.delegate = self
@@ -96,7 +95,19 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     /// 広告読み込みを再試行
     func retryAdLoading() {
+        guard let bannerView = currentBannerView else {
+            // 現在のバナービューが存在しない場合は、新しいバナービューを作成
+            let newBannerView = GADBannerView(adSize: GADAdSizeBanner)
+            newBannerView.adUnitID = BannerAdView.testAdUnitID
+            newBannerView.rootViewController = UIApplication.shared.activeWindow?.rootViewController
+            loadBannerAd(for: newBannerView)
+            return
+        }
+        
         adLoadingState = .loading
+        let request = GADRequest()
+        bannerView.delegate = self
+        bannerView.load(request)
     }
 }
 

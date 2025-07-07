@@ -30,9 +30,7 @@ struct BannerAdView: UIViewRepresentable {
     func makeUIView(context: Context) -> GADBannerView {
         let bannerView = GADBannerView(adSize: adSize)
         bannerView.adUnitID = adUnitID
-        bannerView.rootViewController = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first?.rootViewController
+        bannerView.rootViewController = UIApplication.shared.activeWindow?.rootViewController
         
         // 広告を読み込み
         adManager.loadBannerAd(for: bannerView)
@@ -146,7 +144,7 @@ struct AdaptiveBannerAdView: View {
                         .frame(height: 50)
                 case .failed(let error):
                     AdErrorView(error: error) {
-                        // 広告読み込み状態をリセットして再試行
+                        // 広告読み込みを再試行
                         adManager.retryAdLoading()
                     }
                 }
@@ -159,7 +157,7 @@ struct AdaptiveBannerAdView: View {
 
 // MARK: - UIApplication Extension
 extension UIApplication {
-    var currentWindow: UIWindow? {
+    var activeWindow: UIWindow? {
         return UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first?.windows.first
