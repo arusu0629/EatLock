@@ -372,46 +372,6 @@ final class LocalAIService: AIService {
         }
     }
     
-    // MARK: - Legacy Methods (for backward compatibility)
-    
-    private func analyzeKeywords(in input: String) -> KeywordAnalysis {
-        return analyzeKeywordsOptimized(in: input)
-    }
-    
-    private func analyzeCalories(in input: String, hasTimeContext: Bool) -> CalorieAnalysis {
-        return analyzeCaloriesOptimized(in: input, hasTimeContext: hasTimeContext)
-    }
-    
-    private func calculateSpecificCalories(for input: String, in category: AIConstants.FoodCategory) -> Int {
-        return calculateSpecificCaloriesOptimized(for: input, in: category, matchedKeyword: "")
-    }
-    
-    private func generateMessage(
-        for type: AIFeedback.FeedbackType,
-        foodCategory: String,
-        preventedCalories: Int,
-        hasTimeContext: Bool
-    ) -> String {
-        return generateMessageSafely(
-            for: type,
-            foodCategory: foodCategory,
-            preventedCalories: preventedCalories,
-            hasTimeContext: hasTimeContext
-        )
-    }
-    
-    private func generateAchievementMessage(
-        foodCategory: String,
-        preventedCalories: Int,
-        hasTimeContext: Bool
-    ) -> String {
-        return generateAchievementMessageSafely(
-            foodCategory: foodCategory,
-            preventedCalories: preventedCalories,
-            hasTimeContext: hasTimeContext
-        )
-    }
-    
     private func applyLateNightMultiplier(_ calories: Int) -> Int {
         let multipliedCalories = Int(Double(calories) * AIConstants.lateNightMultiplier)
         return max(multipliedCalories, AIConstants.minimumLateNightCalories)
@@ -429,44 +389,18 @@ final class LocalAIService: AIService {
         }
     }
     
-    private func generateMessage(
-        for type: AIFeedback.FeedbackType,
-        foodCategory: String,
-        preventedCalories: Int,
-        hasTimeContext: Bool
-    ) -> String {
-        switch type {
-        case .achievement:
-            return generateAchievementMessage(
-                foodCategory: foodCategory,
-                preventedCalories: preventedCalories,
-                hasTimeContext: hasTimeContext
-            )
-        case .support:
-            return AIConstants.Messages.support.randomElement() ?? ""
-        case .warning:
-            return AIConstants.Messages.warning(foodCategory: foodCategory).randomElement() ?? ""
-        case .encouragement:
-            return AIConstants.Messages.encouragement.randomElement() ?? ""
-        }
+    // MARK: - Legacy Methods (for backward compatibility)
+    
+    private func analyzeKeywords(in input: String) -> KeywordAnalysis {
+        return analyzeKeywordsOptimized(in: input)
     }
     
-    private func generateAchievementMessage(
-        foodCategory: String,
-        preventedCalories: Int,
-        hasTimeContext: Bool
-    ) -> String {
-        if hasTimeContext {
-            return AIConstants.Messages.lateNightAchievement(
-                foodCategory: foodCategory,
-                preventedCalories: preventedCalories
-            ).randomElement() ?? ""
-        } else {
-            return AIConstants.Messages.achievement(
-                foodCategory: foodCategory,
-                preventedCalories: preventedCalories
-            ).randomElement() ?? ""
-        }
+    private func analyzeCalories(in input: String, hasTimeContext: Bool) -> CalorieAnalysis {
+        return analyzeCaloriesOptimized(in: input, hasTimeContext: hasTimeContext)
+    }
+    
+    private func calculateSpecificCalories(for input: String, in category: AIConstants.FoodCategory) -> Int {
+        return calculateSpecificCaloriesOptimized(for: input, in: category, matchedKeyword: "")
     }
 }
 
