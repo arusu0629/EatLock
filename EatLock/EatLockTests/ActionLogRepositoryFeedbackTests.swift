@@ -34,14 +34,10 @@ final class ActionLogRepositoryFeedbackTests: XCTestCase {
     
     func testFetchActionLogsWithFeedback() throws {
         // Given
-        let logWithFeedback = ActionLog(content: "テストログ1", logType: .success)
-        logWithFeedback.setAIFeedback("フィードバック1", preventedCalories: 100)
+        let logWithFeedback = try repository.createActionLog(content: "テストログ1", logType: .success)
+        try repository.setAIFeedback(for: logWithFeedback, feedback: "フィードバック1", preventedCalories: 100)
         
-        let logWithoutFeedback = ActionLog(content: "テストログ2", logType: .other)
-        
-        modelContext.insert(logWithFeedback)
-        modelContext.insert(logWithoutFeedback)
-        try modelContext.save()
+        let logWithoutFeedback = try repository.createActionLog(content: "テストログ2", logType: .other)
         
         // When
         let result = try repository.fetchActionLogsWithFeedback()
@@ -53,18 +49,13 @@ final class ActionLogRepositoryFeedbackTests: XCTestCase {
     
     func testFetchFeedbackHistoryWithCalories() throws {
         // Given
-        let logWithCalories = ActionLog(content: "テストログ1", logType: .success)
-        logWithCalories.setAIFeedback("フィードバック1", preventedCalories: 200)
+        let logWithCalories = try repository.createActionLog(content: "テストログ1", logType: .success)
+        try repository.setAIFeedback(for: logWithCalories, feedback: "フィードバック1", preventedCalories: 200)
         
-        let logWithoutCalories = ActionLog(content: "テストログ2", logType: .success)
-        logWithoutCalories.setAIFeedback("フィードバック2", preventedCalories: 0)
+        let logWithoutCalories = try repository.createActionLog(content: "テストログ2", logType: .success)
+        try repository.setAIFeedback(for: logWithoutCalories, feedback: "フィードバック2", preventedCalories: 0)
         
-        let logWithoutFeedback = ActionLog(content: "テストログ3", logType: .other)
-        
-        modelContext.insert(logWithCalories)
-        modelContext.insert(logWithoutCalories)
-        modelContext.insert(logWithoutFeedback)
-        try modelContext.save()
+        let logWithoutFeedback = try repository.createActionLog(content: "テストログ3", logType: .other)
         
         // When
         let result = try repository.fetchFeedbackHistoryWithCalories()
@@ -77,16 +68,13 @@ final class ActionLogRepositoryFeedbackTests: XCTestCase {
     
     func testFetchTodaysFeedbackHistory() throws {
         // Given
-        let todayLog = ActionLog(content: "今日のログ", logType: .success)
-        todayLog.setAIFeedback("今日のフィードバック", preventedCalories: 150)
+        let todayLog = try repository.createActionLog(content: "今日のログ", logType: .success)
+        try repository.setAIFeedback(for: todayLog, feedback: "今日のフィードバック", preventedCalories: 150)
         
-        let yesterdayLog = ActionLog(content: "昨日のログ", logType: .success)
+        let yesterdayLog = try repository.createActionLog(content: "昨日のログ", logType: .success)
         yesterdayLog.timestamp = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
-        yesterdayLog.setAIFeedback("昨日のフィードバック", preventedCalories: 100)
-        
-        modelContext.insert(todayLog)
-        modelContext.insert(yesterdayLog)
-        try modelContext.save()
+        try modelContext.save() // timestamp変更後に保存
+        try repository.setAIFeedback(for: yesterdayLog, feedback: "昨日のフィードバック", preventedCalories: 100)
         
         // When
         let result = try repository.fetchTodaysFeedbackHistory()
@@ -101,17 +89,15 @@ final class ActionLogRepositoryFeedbackTests: XCTestCase {
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
         let endDate = Date()
         
-        let recentLog = ActionLog(content: "最近のログ", logType: .success)
+        let recentLog = try repository.createActionLog(content: "最近のログ", logType: .success)
         recentLog.timestamp = Calendar.current.date(byAdding: .day, value: -3, to: Date())!
-        recentLog.setAIFeedback("最近のフィードバック", preventedCalories: 120)
+        try modelContext.save() // timestamp変更後に保存
+        try repository.setAIFeedback(for: recentLog, feedback: "最近のフィードバック", preventedCalories: 120)
         
-        let oldLog = ActionLog(content: "古いログ", logType: .success)
+        let oldLog = try repository.createActionLog(content: "古いログ", logType: .success)
         oldLog.timestamp = Calendar.current.date(byAdding: .day, value: -10, to: Date())!
-        oldLog.setAIFeedback("古いフィードバック", preventedCalories: 80)
-        
-        modelContext.insert(recentLog)
-        modelContext.insert(oldLog)
-        try modelContext.save()
+        try modelContext.save() // timestamp変更後に保存
+        try repository.setAIFeedback(for: oldLog, feedback: "古いフィードバック", preventedCalories: 80)
         
         // When
         let result = try repository.fetchFeedbackHistory(from: startDate, to: endDate)
