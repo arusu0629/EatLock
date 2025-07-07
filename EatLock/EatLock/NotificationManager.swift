@@ -21,6 +21,7 @@ final class NotificationManager: ObservableObject {
     @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @Published var isInitialized = false
     @Published var lastError: NotificationError?
+    @Published var isDailyReminderEnabled = true
     
     private let logger = Logger(subsystem: "com.eatlock.notification", category: "NotificationManager")
     private let notificationCenter = UNUserNotificationCenter.current()
@@ -28,12 +29,37 @@ final class NotificationManager: ObservableObject {
     // UserDefaults キー
     private let hasRequestedPermissionKey = "EatLock_HasRequestedNotificationPermission"
     private let permissionRequestDateKey = "EatLock_NotificationPermissionRequestDate"
+    private let dailyReminderEnabledKey = "EatLock_DailyReminderEnabled"
+    
+    // MARK: - Motivation Messages
+    
+    private let motivationMessages = [
+        "今日の行動を記録しましょう！小さな一歩が大きな変化につながります。",
+        "継続は力なり。今日も頑張りましょう！",
+        "あなたの健康目標に向かって、今日も一歩前進しましょう。",
+        "記録を続けることで、きっと良い変化が見えてきます。",
+        "今日も自分を大切にする行動を心がけましょう。",
+        "小さな努力の積み重ねが、大きな成果を生み出します。",
+        "今日の自分を振り返る時間を作りましょう。",
+        "健康な習慣を続けることで、より良い毎日を送れます。",
+        "今日も前向きな気持ちで取り組みましょう！",
+        "あなたの努力は必ず報われます。継続していきましょう。"
+    ]
+    
+    private let streakReminderMessages = [
+        "連続記録が途切れそうです。今日の行動を記録して継続を保ちましょう！",
+        "素晴らしい継続記録を保つために、今日も記録を忘れずに！",
+        "継続は成功の鍵です。今日の記録を忘れずに入力しましょう。",
+        "頑張っている自分を認めて、今日も記録を続けましょう。",
+        "一日の振り返りの時間です。今日の行動を記録しましょう。"
+    ]
     
     // MARK: - Initialization
     
     private init() {
         logger.info("NotificationManager initialized")
         setupNotificationDelegate()
+        loadSettings()
     }
     
     // MARK: - Public Methods
@@ -52,6 +78,11 @@ final class NotificationManager: ObservableObject {
         
         // 通知カテゴリーを設定
         setupNotificationCategories()
+        
+        // デイリーリマインダーをスケジュール（権限があり、有効の場合）
+        if await checkPermission() && isDailyReminderEnabled {
+            await scheduleDailyReminder()
+        }
         
         isInitialized = true
         logger.info("NotificationManager initialization completed")
@@ -93,6 +124,10 @@ final class NotificationManager: ObservableObject {
             
             if granted {
                 logger.info("Notification permission granted")
+                // 権限が許可されたら、デイリーリマインダーをスケジュール
+                if isDailyReminderEnabled {
+                    await scheduleDailyReminder()
+                }
             } else {
                 logger.info("Notification permission denied")
             }
@@ -101,6 +136,120 @@ final class NotificationManager: ObservableObject {
             logger.error("Failed to request notification permission: \(error.localizedDescription)")
             lastError = .permissionRequestFailed(error)
         }
+    }
+    
+    /// デイリーリマインダー通知をスケジュール
+    /// - Parameter time: 通知時刻（オプション、デフォルトは21:00）
+    func scheduleDailyReminder(time: DateComponents? = nil) async {
+        guard await checkPermission() else {
+            logger.warning("Cannot schedule daily reminder: permission not granted")
+            return
+        }
+        
+        guard isDailyReminderEnabled else {
+            logger.info("Daily reminder is disabled, skipping schedule")
+            return
+        }
+        
+        logger.info("Scheduling daily reminder notification")
+        
+        // 既存のデイリーリマインダーを削除
+        await cancelDailyReminder()
+        
+        // デフォルトの通知時刻を設定（21:00）
+        let notificationTime = time ?? DateComponents(hour: 21, minute: 0)
+        
+        // 通知コンテンツを作成
+        let content = UNMutableNotificationContent()
+        content.title = "EatLock 習慣化サポート"
+        content.body = motivationMessages.randomElement() ?? motivationMessages[0]
+        content.sound = .default
+        content.categoryIdentifier = "DAILY_REMINDER"
+        
+        // 毎日繰り返すトリガーを作成
+        let trigger = UNCalendarNotificationTrigger(dateMatching: notificationTime, repeats: true)
+        let request = UNNotificationRequest(
+            identifier: "daily_reminder",
+            content: content,
+            trigger: trigger
+        )
+        
+        do {
+            try await notificationCenter.add(request)
+            logger.info("Daily reminder notification scheduled successfully for \(notificationTime.hour ?? 21):\(notificationTime.minute ?? 0)")
+        } catch {
+            logger.error("Failed to schedule daily reminder: \(error.localizedDescription)")
+            lastError = .schedulingFailed(error)
+        }
+    }
+    
+    /// 連続記録が途切れそうなタイミングでの通知をスケジュール
+    func scheduleStreakReminderIfNeeded() async {
+        guard await checkPermission() else {
+            logger.warning("Cannot schedule streak reminder: permission not granted")
+            return
+        }
+        
+        guard isDailyReminderEnabled else {
+            logger.info("Daily reminder is disabled, skipping streak reminder")
+            return
+        }
+        
+        logger.info("Scheduling streak reminder notification")
+        
+        // 既存の連続記録リマインダーを削除
+        await cancelStreakReminder()
+        
+        // 2時間後に通知を送信
+        let content = UNMutableNotificationContent()
+        content.title = "EatLock 継続サポート"
+        content.body = streakReminderMessages.randomElement() ?? streakReminderMessages[0]
+        content.sound = .default
+        content.categoryIdentifier = "STREAK_REMINDER"
+        
+        // 2時間後に発火（テスト用）
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 7200, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "streak_reminder",
+            content: content,
+            trigger: trigger
+        )
+        
+        do {
+            try await notificationCenter.add(request)
+            logger.info("Streak reminder notification scheduled successfully")
+        } catch {
+            logger.error("Failed to schedule streak reminder: \(error.localizedDescription)")
+            lastError = .schedulingFailed(error)
+        }
+    }
+    
+    /// デイリーリマインダー通知を有効/無効にする
+    func setDailyReminderEnabled(_ enabled: Bool) async {
+        logger.info("Setting daily reminder enabled: \(enabled)")
+        
+        isDailyReminderEnabled = enabled
+        saveDailyReminderEnabled(enabled)
+        
+        if enabled {
+            if await checkPermission() {
+                await scheduleDailyReminder()
+            }
+        } else {
+            await cancelDailyReminder()
+        }
+    }
+    
+    /// デイリーリマインダーをキャンセル
+    func cancelDailyReminder() async {
+        logger.info("Canceling daily reminder")
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: ["daily_reminder"])
+    }
+    
+    /// 連続記録リマインダーをキャンセル
+    func cancelStreakReminder() async {
+        logger.info("Canceling streak reminder")
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: ["streak_reminder"])
     }
     
     /// テスト用ローカル通知を即時発火
@@ -202,6 +351,20 @@ final class NotificationManager: ObservableObject {
     
     /// 通知カテゴリーを設定
     private func setupNotificationCategories() {
+        let dailyReminderCategory = UNNotificationCategory(
+            identifier: "DAILY_REMINDER",
+            actions: [],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+        
+        let streakReminderCategory = UNNotificationCategory(
+            identifier: "STREAK_REMINDER",
+            actions: [],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+        
         let habitReminderCategory = UNNotificationCategory(
             identifier: "HABIT_REMINDER",
             actions: [],
@@ -209,7 +372,11 @@ final class NotificationManager: ObservableObject {
             options: .customDismissAction
         )
         
-        notificationCenter.setNotificationCategories([habitReminderCategory])
+        notificationCenter.setNotificationCategories([
+            dailyReminderCategory,
+            streakReminderCategory,
+            habitReminderCategory
+        ])
         logger.info("Notification categories set up")
     }
     
@@ -247,6 +414,22 @@ final class NotificationManager: ObservableObject {
             hasRequestedPermission: hasRequestedPermission(),
             requestDate: getPermissionRequestDate()
         )
+    }
+    
+    /// 設定を読み込み
+    private func loadSettings() {
+        isDailyReminderEnabled = UserDefaults.standard.bool(forKey: dailyReminderEnabledKey)
+        if !UserDefaults.standard.bool(forKey: "\(dailyReminderEnabledKey)_initialized") {
+            // 初回起動時はデフォルトでtrue
+            isDailyReminderEnabled = true
+            UserDefaults.standard.set(true, forKey: dailyReminderEnabledKey)
+            UserDefaults.standard.set(true, forKey: "\(dailyReminderEnabledKey)_initialized")
+        }
+    }
+    
+    /// デイリーリマインダーの有効/無効設定を保存
+    private func saveDailyReminderEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: dailyReminderEnabledKey)
     }
 }
 
@@ -290,8 +473,20 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         
         logger.info("Handling notification response - ID: \(identifier), Category: \(categoryIdentifier)")
         
-        // 必要に応じて特定のアクションを実行
-        // 例: アプリ内の特定画面に遷移など
+        // 通知の種類に応じた処理
+        switch categoryIdentifier {
+        case "DAILY_REMINDER", "STREAK_REMINDER":
+            // デイリーリマインダーや連続記録リマインダーの場合
+            // アプリを開いてログ入力画面に誘導
+            // 実際の実装では、NavigationRouterを使用して適切な画面に遷移
+            break
+        case "HABIT_REMINDER":
+            // 習慣化サポート通知の場合
+            // アプリを開いてメイン画面に遷移
+            break
+        default:
+            break
+        }
     }
 }
 

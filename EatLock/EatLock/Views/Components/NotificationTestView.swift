@@ -138,6 +138,91 @@ struct NotificationTestView: View {
                     Text("アクション")
                 }
                 
+                // 新機能テストセクション
+                Section {
+                    VStack(spacing: 12) {
+                        // デイリーリマインダー有効/無効切り替え
+                        HStack {
+                            Toggle("デイリーリマインダー", isOn: Binding(
+                                get: { notificationManager.isDailyReminderEnabled },
+                                set: { newValue in
+                                    Task {
+                                        await notificationManager.setDailyReminderEnabled(newValue)
+                                    }
+                                }
+                            ))
+                            .disabled(!canScheduleNotification)
+                        }
+                        
+                        // デイリーリマインダーをスケジュール
+                        Button(action: {
+                            Task {
+                                await notificationManager.scheduleDailyReminder()
+                                showAlert(message: "デイリーリマインダーをスケジュールしました（毎日21時）")
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "alarm")
+                                    .foregroundColor(.purple)
+                                Text("デイリーリマインダーをスケジュール")
+                            }
+                        }
+                        .disabled(!canScheduleNotification || !notificationManager.isDailyReminderEnabled)
+                        
+                        // 連続記録リマインダーをテスト
+                        Button(action: {
+                            Task {
+                                await notificationManager.scheduleStreakReminderIfNeeded()
+                                showAlert(message: "連続記録リマインダーをテストしました")
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "flame")
+                                    .foregroundColor(.orange)
+                                Text("連続記録リマインダーをテスト")
+                            }
+                        }
+                        .disabled(!canScheduleNotification || !notificationManager.isDailyReminderEnabled)
+                        
+                        // デイリーリマインダーをキャンセル
+                        Button(action: {
+                            Task {
+                                await notificationManager.cancelDailyReminder()
+                                showAlert(message: "デイリーリマインダーをキャンセルしました")
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "alarm.slash")
+                                    .foregroundColor(.red)
+                                Text("デイリーリマインダーをキャンセル")
+                            }
+                        }
+                        .disabled(!canScheduleNotification)
+                        
+                        // カスタム時間でデイリーリマインダーをスケジュール
+                        Button(action: {
+                            Task {
+                                // テスト用に22時にスケジュール
+                                var dateComponents = DateComponents()
+                                dateComponents.hour = 22
+                                dateComponents.minute = 0
+                                
+                                await notificationManager.scheduleDailyReminder(time: dateComponents)
+                                showAlert(message: "カスタムデイリーリマインダーをスケジュールしました（毎日22時）")
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "clock.arrow.2.circlepath")
+                                    .foregroundColor(.blue)
+                                Text("カスタム時間でリマインダー（22時）")
+                            }
+                        }
+                        .disabled(!canScheduleNotification || !notificationManager.isDailyReminderEnabled)
+                    }
+                } header: {
+                    Text("新機能テスト (Issue #34)")
+                }
+                
                 // エラー情報
                 if let error = notificationManager.lastError {
                     Section {
