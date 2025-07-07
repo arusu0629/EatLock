@@ -41,6 +41,9 @@ struct EatLockApp: App {
                     
                     // 通知権限を初回のみリクエスト
                     await NotificationManager.shared.requestPermissionIfNeeded()
+                    
+                    // 広告マネージャーを初期化
+                    AdManager.shared.initialize()
                 }
         }
         .modelContainer(sharedModelContainer)
