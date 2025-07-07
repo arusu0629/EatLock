@@ -16,6 +16,7 @@ enum NavigationDestination: Hashable {
     case settings
     case statistics
     case tutorial
+    case notificationTest
 }
 
 /// NavigationDestinationのビュー生成拡張
@@ -33,6 +34,8 @@ extension NavigationDestination {
             StatisticsView()
         case .tutorial:
             TutorialView()
+        case .notificationTest:
+            NotificationTestView()
         }
     }
 }
@@ -194,18 +197,36 @@ struct LogDetailView: View {
 /// 設定画面（将来的な拡張用）
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    private let router = NavigationRouter.shared
     
     var body: some View {
-        VStack {
-            Text("設定")
-                .font(.title)
-                .padding()
+        List {
+            Section {
+                Button(action: {
+                    router.push(.notificationTest)
+                }) {
+                    HStack {
+                        Image(systemName: "bell.badge")
+                            .foregroundColor(.blue)
+                        Text("通知テスト")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            } header: {
+                Text("開発者ツール")
+            }
             
-            Text("将来的な機能拡張の準備として作成されました")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            Spacer()
+            Section {
+                Text("将来的な機能拡張の準備として作成されました")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("情報")
+            }
         }
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
