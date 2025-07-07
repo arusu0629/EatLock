@@ -230,6 +230,8 @@ extension NavigationDestination: Identifiable {
             return "statistics"
         case .tutorial:
             return "tutorial"
+        case .notificationTest:
+            return "notificationTest"
         }
     }
 }
