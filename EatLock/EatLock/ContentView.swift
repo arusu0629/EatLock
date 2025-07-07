@@ -151,13 +151,12 @@ struct ContentView: View {
                 impactFeedback.impactOccurred()
                 
                 // AIフィードバックが生成されていれば表示
-                if let aiFeedback = repository.getSecureAIFeedback(for: createdLog),
-                   let preventedCalories = createdLog.preventedCalories {
+                if let aiFeedback = repository.getSecureAIFeedback(for: createdLog) {
                     
-                    // AIFeedbackオブジェクトを作成
+                    // AIFeedbackオブジェクトを作成（preventedCaloriesがnilの場合は0を使用）
                     let feedback = AIFeedback(
                         message: aiFeedback,
-                        preventedCalories: preventedCalories,
+                        preventedCalories: createdLog.preventedCalories ?? 0,
                         type: determineFeedbackType(for: createdLog.logType),
                         generatedAt: createdLog.updatedAt
                     )
