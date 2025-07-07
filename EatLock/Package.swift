@@ -18,7 +18,7 @@ let package = Package(
         // Google Mobile Ads SDK
         .package(
             url: "https://github.com/googleads/swift-package-manager-google-mobile-ads",
-            from: "11.0.0"
+            from: "12.0.0"
         )
     ],
     targets: [

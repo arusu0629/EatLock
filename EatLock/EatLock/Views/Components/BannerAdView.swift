@@ -149,6 +149,7 @@ struct AdaptiveBannerAdView: View {
                         // 広告を再読み込み
                         let bannerView = GADBannerView(adSize: GADAdSizeBanner)
                         bannerView.adUnitID = adUnitID ?? BannerAdView.testAdUnitID
+                        bannerView.rootViewController = UIApplication.shared.currentWindow?.rootViewController
                         adManager.loadBannerAd(for: bannerView)
                     }
                 }
