@@ -73,6 +73,21 @@ struct NotificationTestView: View {
                         }
                         .disabled(!canRequestPermission)
                         
+                        // 設定アプリへの誘導（権限が拒否されている場合）
+                        if notificationManager.authorizationStatus == .denied {
+                            Button(action: {
+                                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(settingsUrl)
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "gear")
+                                        .foregroundColor(.orange)
+                                    Text("設定アプリで権限を有効にする")
+                                }
+                            }
+                        }
+                        
                         // テスト通知
                         Button(action: {
                             Task {
@@ -201,7 +216,7 @@ struct NotificationTestView: View {
         case .notDetermined:
             return "通知権限がまだ決定されていません。権限をリクエストしてください。"
         case .denied:
-            return "通知権限が拒否されています。設定アプリから権限を有効にしてください。"
+            return "通知権限が拒否されています。下の「設定アプリで権限を有効にする」ボタンから設定を変更してください。"
         case .authorized:
             return "通知権限が許可されています。通知を送信できます。"
         case .provisional:
@@ -214,8 +229,7 @@ struct NotificationTestView: View {
     }
     
     private var canRequestPermission: Bool {
-        return notificationManager.authorizationStatus == .notDetermined || 
-               notificationManager.authorizationStatus == .denied
+        return notificationManager.authorizationStatus == .notDetermined
     }
     
     private var canScheduleNotification: Bool {
