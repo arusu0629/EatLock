@@ -7,6 +7,7 @@
 
 import SwiftUI
 import GoogleMobileAds
+import Combine
 
 /// SwiftUI用のバナー広告ビュー
 struct BannerAdView: UIViewRepresentable {
@@ -62,10 +63,34 @@ struct BannerAdView: UIViewRepresentable {
     }
 }
 
-/// 固定バナー広告ビュー（画面下部固定用）
+/// キーボード状態監視用のObservableObject
+class KeyboardObserver: ObservableObject {
+    @Published var isKeyboardVisible = false
+    
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .sink { [weak self] _ in
+                self?.isKeyboardVisible = true
+            }
+            .store(in: &cancellables)
+        
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .sink { [weak self] _ in
+                self?.isKeyboardVisible = false
+            }
+            .store(in: &cancellables)
+    }
+}
+
+/// 固定バナー広告ビュー（画面下部固定用、キーボード対応）
 struct FixedBannerAdView: View {
     let adUnitID: String?
     let backgroundColor: Color
+    
+    @ObservedObject private var keyboardObserver = KeyboardObserver()
+    @ObservedObject private var adManager = AdManager.shared
     
     /// 初期化
     /// - Parameters:
@@ -77,15 +102,29 @@ struct FixedBannerAdView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(height: 1)
-            
-            BannerAdView(adUnitID: adUnitID)
-                .frame(height: 50)
-                .background(backgroundColor)
-                .clipped()
+        // キーボード表示中またはローディング失敗時は非表示
+        if !keyboardObserver.isKeyboardVisible && shouldShowAd {
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 1)
+                
+                BannerAdView(adUnitID: adUnitID)
+                    .frame(height: 50)
+                    .background(backgroundColor)
+                    .clipped()
+            }
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+    
+    /// 広告を表示すべきかどうか
+    private var shouldShowAd: Bool {
+        switch adManager.adLoadingState {
+        case .loaded, .loading:
+            return true
+        case .idle, .failed:
+            return false
         }
     }
 }
@@ -149,11 +188,12 @@ struct AdLoadingView: View {
     }
 }
 
-/// 広告状態に応じた表示ビュー
+/// 広告状態に応じた表示ビュー（キーボード対応、失敗時非表示）
 struct AdaptiveBannerAdView: View {
     let adUnitID: String?
     
     @ObservedObject private var adManager = AdManager.shared
+    @ObservedObject private var keyboardObserver = KeyboardObserver()
     @State private var retryTrigger = false
     
     init(adUnitID: String? = nil) {
@@ -161,30 +201,33 @@ struct AdaptiveBannerAdView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(height: 1)
-            
-            Group {
-                switch adManager.adLoadingState {
-                case .idle, .loading:
-                    AdLoadingView()
-                case .loaded:
-                    BannerAdView(adUnitID: adUnitID)
-                        .frame(height: 50)
-                        .id(retryTrigger) // トリガーでビューを再生成
-                case .failed(let error):
-                    AdErrorView(error: error) {
-                        // AdManagerの再試行機能を使用
-                        adManager.retryAdLoading()
-                        // retryTriggerを変更してビューを再生成
-                        retryTrigger.toggle()
+        // キーボード表示中は非表示
+        if !keyboardObserver.isKeyboardVisible {
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 1)
+                
+                Group {
+                    switch adManager.adLoadingState {
+                    case .idle:
+                        // アイドル状態では何も表示しない
+                        EmptyView()
+                    case .loading:
+                        AdLoadingView()
+                    case .loaded:
+                        BannerAdView(adUnitID: adUnitID)
+                            .frame(height: 50)
+                            .id(retryTrigger) // トリガーでビューを再生成
+                    case .failed:
+                        // 失敗時は完全に非表示（要件に従い）
+                        EmptyView()
                     }
                 }
+                .background(Color.white)
+                .clipped()
             }
-            .background(Color.white)
-            .clipped()
+            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 }

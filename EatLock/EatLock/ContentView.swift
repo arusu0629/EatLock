@@ -75,14 +75,18 @@ struct ContentView: View {
                         onSubmit: addActionLog
                     )
                     
-                    // 広告バナー
-                    FixedBannerAdView()
+                    // 広告バナー（Safe Area下端に固定、キーボード対応）
+                    AdaptiveBannerAdView()
                 }
                 .background(Color(.systemBackground))
             }
         }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Safe Area下端への確実な固定を保証
+            EmptyView()
+        }
         .onAppear {
             setupRepository()
             checkTutorialNeeded()
