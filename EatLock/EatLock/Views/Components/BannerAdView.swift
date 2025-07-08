@@ -88,6 +88,8 @@ struct AdErrorView: View {
     let error: Error
     let retryAction: () -> Void
     
+    @State private var isRetrying = false
+    
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -98,11 +100,24 @@ struct AdErrorView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             
-            Button("再試行") {
+            Button(action: {
+                isRetrying = true
                 retryAction()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    isRetrying = false
+                }
+            }) {
+                HStack {
+                    if isRetrying {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    }
+                    Text("再試行")
+                }
             }
             .font(.caption)
             .foregroundColor(.blue)
+            .disabled(isRetrying)
         }
         .frame(height: 50)
         .frame(maxWidth: .infinity)
@@ -154,9 +169,8 @@ struct AdaptiveBannerAdView: View {
                         .id(retryTrigger) // トリガーでビューを再生成
                 case .failed(let error):
                     AdErrorView(error: error) {
-                        // 広告読み込みを再試行
-                        adManager.resetAdLoadingState()
-                        retryTrigger.toggle() // ビューの再生成をトリガー
+                        // AdManagerの再試行機能を使用
+                        adManager.retryAdLoading()
                     }
                 }
             }
@@ -171,6 +185,10 @@ extension UIApplication {
     var activeWindow: UIWindow? {
         return UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first
+            .first(where: { $0.activationState == .foregroundActive })?
+            .windows.first(where: { $0.isKeyWindow })
+            ?? UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first?.windows.first
     }
 }
