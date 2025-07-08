@@ -22,6 +22,9 @@ struct ContentView: View {
     @State private var toastType: ToastType = .info
     @State private var showFeedback = false
     @State private var currentFeedback: AIFeedback?
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isInputFocused = false
+    @FocusState private var textFieldIsFocused: Bool
     private let router = NavigationRouter.shared
     
     init() {
@@ -40,45 +43,73 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // カスタムタイトルバー
-                TitleBarView()
-                    .background(Color(.systemBackground))
-                    .shadow(radius: 1)
-                    .zIndex(1)
-                
-                // メインコンテンツ
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // 統計カード
-                        StatsCardView(stats: repository.currentStats)
-                        
-                        // 行動ログ一覧
-                        LogListView(
-                            actionLogs: actionLogs,
-                            repository: repository,
-                            onDelete: deleteActionLogs
+            ZStack {
+                VStack(spacing: 0) {
+                    // カスタムタイトルバー
+                    TitleBarView()
+                        .background(Color(.systemBackground))
+                        .shadow(radius: 1)
+                        .zIndex(1)
+                    
+                    // メインコンテンツ
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            // スクロール位置監視用のリーダー
+                            ScrollOffsetReader()
+                            
+                            // 統計カード
+                            StatsCardView(stats: repository.currentStats)
+                            
+                            // 行動ログ一覧
+                            LogListView(
+                                actionLogs: actionLogs,
+                                repository: repository,
+                                onDelete: deleteActionLogs
+                            )
+                            
+                            // 下部の余白（入力欄の分）
+                            Color.clear
+                                .frame(height: 140)
+                        }
+                        .padding(.horizontal)
+                    }
+                    .coordinateSpace(name: "scroll")
+                    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                        scrollOffset = -value
+                    }
+                    
+                    // 下部固定入力欄
+                    VStack(spacing: 0) {
+                        LogInputView(
+                            newLogContent: $newLogContent,
+                            selectedLogType: $selectedLogType,
+                            onSubmit: addActionLog
                         )
                         
-                        // 下部の余白（入力欄の分）
-                        Color.clear
-                            .frame(height: 140)
+                        // 広告バナー（Safe Area下端に固定、キーボード対応）
+                        AdaptiveBannerAdView()
                     }
-                    .padding(.horizontal)
+                    .background(Color(.systemBackground))
                 }
                 
-                // 下部固定入力欄
-                VStack(spacing: 0) {
-                    LogInputView(
-                        newLogContent: $newLogContent,
-                        selectedLogType: $selectedLogType,
-                        onSubmit: addActionLog
-                    )
+                // フローティングボタン
+                VStack {
+                    Spacer()
                     
-                    // 広告バナー（Safe Area下端に固定、キーボード対応）
-                    AdaptiveBannerAdView()
+                    HStack {
+                        Spacer()
+                        
+                        FloatingAddButton(
+                            onTap: {
+                                focusTextInput()
+                            },
+                            isInputFocused: $isInputFocused,
+                            scrollOffset: $scrollOffset
+                        )
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 120) // 入力欄の上に配置
+                    }
                 }
-                .background(Color(.systemBackground))
             }
         }
         .navigationBarHidden(true)
@@ -90,6 +121,10 @@ struct ContentView: View {
         .onAppear {
             setupRepository()
             checkTutorialNeeded()
+            setupKeyboardObservers()
+        }
+        .onDisappear {
+            removeKeyboardObservers()
         }
         .alert("エラー", isPresented: $showingAlert) {
             Button("OK") { }
@@ -237,6 +272,47 @@ struct ContentView: View {
                 router.presentSheet(.tutorial)
             }
         }
+    }
+    
+    private func focusTextInput() {
+        // フローティングボタンタップ時にテキスト入力にフォーカス
+        // 注: 実際のフォーカス処理はLogInputViewの内部で処理される
+        // ここではスクロールを最下部に移動
+        withAnimation(.easeInOut(duration: 0.5)) {
+            scrollOffset = 0
+        }
+    }
+    
+    private func setupKeyboardObservers() {
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            isInputFocused = true
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            isInputFocused = false
+        }
+    }
+    
+    private func removeKeyboardObservers() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
     }
 }
 
