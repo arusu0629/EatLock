@@ -74,6 +74,9 @@ struct ContentView: View {
                         selectedLogType: $selectedLogType,
                         onSubmit: addActionLog
                     )
+                    
+                    // 広告バナー
+                    FixedBannerAdView()
                 }
                 .background(Color(.systemBackground))
             }
