@@ -56,6 +56,8 @@ struct LogInputView: View {
                     }
                     .pickerStyle(MenuPickerStyle())
                     .foregroundColor(.primary)
+                    .accessibilityLabel("ログタイプ選択")
+                    .accessibilityHint("記録する行動の種類を選択します")
                     
                     Spacer()
                 }
@@ -69,6 +71,9 @@ struct LogInputView: View {
                             .onSubmit {
                                 handleSubmit()
                             }
+                            .accessibilityLabel("行動記録入力欄")
+                            .accessibilityHint("今日の行動や気持ちを入力してください")
+                            .dynamicTypeSize(.large ... .accessibility3)
                         
                         // 文字数カウンター
                         HStack {
@@ -76,6 +81,7 @@ struct LogInputView: View {
                                 Text("文字数上限に達しました")
                                     .font(.caption)
                                     .foregroundColor(.red)
+                                    .accessibilityLabel("文字数上限に達しました")
                             }
                             
                             Spacer()
@@ -86,6 +92,8 @@ struct LogInputView: View {
                                     newLogContent.count > maxCharacters - 50 ? .orange :
                                     newLogContent.count > maxCharacters - 100 ? .yellow : .secondary
                                 )
+                                .accessibilityLabel("文字数: \(newLogContent.count)文字 / \(maxCharacters)文字")
+                                .accessibilityHidden(newLogContent.isEmpty)
                         }
                         .padding(.horizontal, 4)
                         .opacity(newLogContent.isEmpty ? 0 : 1)
@@ -107,6 +115,9 @@ struct LogInputView: View {
                             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
                     }
                     .disabled(!isSubmitEnabled)
+                    .accessibilityLabel("送信ボタン")
+                    .accessibilityHint(isSubmitEnabled ? "行動ログを送信します" : "入力内容を入力してください")
+                    .accessibilityAddTraits(isSubmitEnabled ? [] : .isButton)
                     .onLongPressGesture(minimumDuration: 0.0, maximumDistance: .infinity, pressing: { pressing in
                         // 送信中でない場合のみアニメーション状態を更新
                         if !isSubmitting {
@@ -137,6 +148,8 @@ struct LogInputView: View {
             )
         }
         .background(Color(.systemBackground))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("行動ログ入力エリア")
         .onAppear {
             setupKeyboardObservers()
         }

@@ -16,22 +16,28 @@ struct StatsCardView: View {
                 title: "記録回数",
                 value: "\(stats.totalLogs)",
                 icon: "doc.text.fill",
-                color: .green
+                color: .green,
+                accessibilityLabel: "記録回数は\(stats.totalLogs)回です"
             )
             StatCard(
                 title: "防いだカロリー",
                 value: "\(stats.totalPreventedCalories)",
                 icon: "flame.fill",
-                color: .green
+                color: .green,
+                accessibilityLabel: "防いだカロリーは\(stats.totalPreventedCalories)キロカロリーです"
             )
             StatCard(
                 title: "継続日数",
                 value: "\(stats.consecutiveDays)",
                 icon: "calendar.badge.checkmark",
-                color: .green
+                color: .green,
+                accessibilityLabel: "継続日数は\(stats.consecutiveDays)日です"
             )
         }
         .padding()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("統計情報カード")
+        .accessibilityHint("記録回数、防いだカロリー、継続日数の統計を表示しています")
     }
 }
 
@@ -41,6 +47,7 @@ struct StatCard: View {
     let value: String
     let icon: String
     let color: Color
+    let accessibilityLabel: String
     
     var body: some View {
         VStack(spacing: 8) {
@@ -55,12 +62,14 @@ struct StatCard: View {
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundStyle(color)
+                .dynamicTypeSize(.large ... .accessibility3)
             
             // ラベル
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                .dynamicTypeSize(.large ... .accessibility3)
         }
         .frame(maxWidth: .infinity)
         .padding()
@@ -70,8 +79,8 @@ struct StatCard: View {
                 .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title): \(value)")
-        .accessibilityHint("統計情報")
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("統計情報カード")
     }
 }
 
