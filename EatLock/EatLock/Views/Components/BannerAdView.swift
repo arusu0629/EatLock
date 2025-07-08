@@ -13,7 +13,6 @@ import Combine
 struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
     let adSize: GADAdSize
-    let onRetry: (() -> Void)?
     
     @ObservedObject private var adManager = AdManager.shared
     
@@ -21,11 +20,9 @@ struct BannerAdView: UIViewRepresentable {
     /// - Parameters:
     ///   - adUnitID: 広告ユニットID。指定しない場合はAppConfigから取得
     ///   - adSize: 広告サイズ。デフォルトはバナーサイズ
-    ///   - onRetry: リトライ時のコールバック
-    init(adUnitID: String? = nil, adSize: GADAdSize = GADAdSizeBanner, onRetry: (() -> Void)? = nil) {
+    init(adUnitID: String? = nil, adSize: GADAdSize = GADAdSizeBanner) {
         self.adUnitID = adUnitID ?? AppConfig.currentBannerAdUnitID
         self.adSize = adSize
-        self.onRetry = onRetry
     }
     
     func makeUIView(context: Context) -> GADBannerView {
@@ -52,11 +49,6 @@ struct BannerAdView: UIViewRepresentable {
     private func findRootViewController() -> UIViewController? {
         // UIApplication.shared.activeWindow を使用
         return UIApplication.shared.activeWindow?.rootViewController
-    }
-    
-    /// 広告を再読み込み
-    func retryAd(for bannerView: GADBannerView) {
-        adManager.loadBannerAd(for: bannerView)
     }
 }
 
