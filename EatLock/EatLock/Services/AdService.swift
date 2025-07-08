@@ -46,22 +46,8 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     @Published var adLoadingState: AdLoadingState = .idle
     
-    // 現在のバナービューの弱参照（スレッドセーフ）
-    private weak var _currentBannerView: GADBannerView?
-    private let bannerViewQueue = DispatchQueue(label: "com.arusu0629.EatLock.BannerView", attributes: .concurrent)
-    
-    private var currentBannerView: GADBannerView? {
-        get {
-            return bannerViewQueue.sync {
-                return _currentBannerView
-            }
-        }
-        set {
-            bannerViewQueue.async(flags: .barrier) { [weak self] in
-                self?._currentBannerView = newValue
-            }
-        }
-    }
+    // 現在のバナービューの弱参照（簡素化）
+    private weak var currentBannerView: GADBannerView?
     
     // ログ用のOSLog
     private let logger = Logger(subsystem: "com.arusu0629.EatLock", category: "AdService")
@@ -99,14 +85,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     /// 広告SDKを初期化
     func initialize() {
         GADMobileAds.sharedInstance().start { [weak self] status in
-            // メインスレッドで初期化結果を処理
-            if Thread.isMainThread {
-                self?.handleInitializationResult(status)
-            } else {
-                Task { @MainActor in
-                    self?.handleInitializationResult(status)
-                }
-            }
+            self?.handleInitializationResult(status)
         }
     }
     
@@ -129,15 +108,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     /// バナー広告を読み込み
     func loadBannerAd(for view: GADBannerView) {
-        // メインスレッドで状態を更新
-        if Thread.isMainThread {
-            adLoadingState = .loading
-        } else {
-            Task { @MainActor in
-                adLoadingState = .loading
-            }
-        }
-        
+        adLoadingState = .loading
         currentBannerView = view
         
         let request = GADRequest()
@@ -149,14 +120,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     func retryAdLoading() {
         guard let bannerView = currentBannerView else {
             logger.warning("再試行に失敗: バナービューが見つかりません")
-            // メインスレッドでエラー状態を更新
-            if Thread.isMainThread {
-                adLoadingState = .failed(AdLoadingError.bannerViewNotFound)
-            } else {
-                Task { @MainActor in
-                    adLoadingState = .failed(AdLoadingError.bannerViewNotFound)
-                }
-            }
+            adLoadingState = .failed(AdLoadingError.bannerViewNotFound)
             return
         }
         
@@ -166,14 +130,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     /// 広告読み込み状態をリセット
     func resetAdLoadingState() {
-        // メインスレッドで状態をリセット
-        if Thread.isMainThread {
-            adLoadingState = .idle
-        } else {
-            Task { @MainActor in
-                adLoadingState = .idle
-            }
-        }
+        adLoadingState = .idle
     }
 }
 
@@ -193,26 +150,12 @@ enum AdLoadingError: Error, LocalizedError {
 extension AdManager: GADBannerViewDelegate {
     func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
         logger.info("バナー広告の読み込みが成功しました")
-        // メインスレッドで@Published プロパティを更新
-        if Thread.isMainThread {
-            adLoadingState = .loaded
-        } else {
-            Task { @MainActor in
-                adLoadingState = .loaded
-            }
-        }
+        adLoadingState = .loaded
     }
     
     func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
         logger.error("バナー広告の読み込みに失敗しました: \(error.localizedDescription)")
-        // メインスレッドで@Published プロパティを更新
-        if Thread.isMainThread {
-            adLoadingState = .failed(error)
-        } else {
-            Task { @MainActor in
-                adLoadingState = .failed(error)
-            }
-        }
+        adLoadingState = .failed(error)
     }
     
     func bannerViewWillPresentScreen(_ bannerView: GADBannerView) {

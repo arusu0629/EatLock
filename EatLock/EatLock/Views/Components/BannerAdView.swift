@@ -14,7 +14,7 @@ struct BannerAdView: UIViewRepresentable {
     let adSize: GADAdSize
     let onRetry: (() -> Void)?
     
-    @StateObject private var adManager = AdManager.shared
+    @ObservedObject private var adManager = AdManager.shared
     
     /// テスト広告Unit ID
     static let testAdUnitID = "ca-app-pub-3940256099942544/2934735716"
@@ -33,19 +33,10 @@ struct BannerAdView: UIViewRepresentable {
     func makeUIView(context: Context) -> GADBannerView {
         let bannerView = GADBannerView(adSize: adSize)
         bannerView.adUnitID = adUnitID
+        bannerView.rootViewController = findRootViewController()
         
-        // メインスレッドでrootViewControllerを安全に設定
-        if Thread.isMainThread {
-            bannerView.rootViewController = self.findRootViewController()
-            // 広告を読み込み
-            adManager.loadBannerAd(for: bannerView)
-        } else {
-            DispatchQueue.main.async {
-                bannerView.rootViewController = self.findRootViewController()
-                // 広告を読み込み
-                adManager.loadBannerAd(for: bannerView)
-            }
-        }
+        // 広告を読み込み
+        adManager.loadBannerAd(for: bannerView)
         
         return bannerView
     }
@@ -54,55 +45,15 @@ struct BannerAdView: UIViewRepresentable {
         // 必要に応じて広告を再読み込み
         if uiView.adUnitID != adUnitID {
             uiView.adUnitID = adUnitID
-            // メインスレッドでrootViewControllerを更新
-            if Thread.isMainThread {
-                uiView.rootViewController = self.findRootViewController()
-                adManager.loadBannerAd(for: uiView)
-            } else {
-                DispatchQueue.main.async {
-                    uiView.rootViewController = self.findRootViewController()
-                    adManager.loadBannerAd(for: uiView)
-                }
-            }
+            uiView.rootViewController = findRootViewController()
+            adManager.loadBannerAd(for: uiView)
         }
     }
     
     /// 安全にrootViewControllerを取得
     private func findRootViewController() -> UIViewController? {
-        guard Thread.isMainThread else {
-            assertionFailure("findRootViewController must be called on main thread")
-            return nil
-        }
-        
-        // 1. 現在のアクティブなシーンからrootViewControllerを取得
-        if let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }),
-           let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }),
-           let rootViewController = keyWindow.rootViewController {
-            return rootViewController
-        }
-        
-        // 2. フォールバック: 任意のアクティブなシーンのrootViewController
-        if let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }),
-           let window = windowScene.windows.first,
-           let rootViewController = window.rootViewController {
-            return rootViewController
-        }
-        
-        // 3. 最終フォールバック: 最初のウィンドウのrootViewController
-        if let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first,
-           let window = windowScene.windows.first,
-           let rootViewController = window.rootViewController {
-            return rootViewController
-        }
-        
-        // 4. 最後の手段: 従来のアプローチ（iOS 13以前互換）
-        return UIApplication.shared.windows.first?.rootViewController
+        // UIApplication.shared.activeWindow を使用
+        return UIApplication.shared.activeWindow?.rootViewController
     }
     
     /// 広告を再読み込み
@@ -202,7 +153,7 @@ struct AdLoadingView: View {
 struct AdaptiveBannerAdView: View {
     let adUnitID: String?
     
-    @StateObject private var adManager = AdManager.shared
+    @ObservedObject private var adManager = AdManager.shared
     @State private var retryTrigger = false
     
     init(adUnitID: String? = nil) {
@@ -239,11 +190,6 @@ struct AdaptiveBannerAdView: View {
 // MARK: - UIApplication Extension
 extension UIApplication {
     var activeWindow: UIWindow? {
-        guard Thread.isMainThread else {
-            assertionFailure("activeWindow must be accessed on main thread")
-            return nil
-        }
-        
         // 1. 現在のアクティブなシーンの keyWindow を取得
         if let windowScene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
