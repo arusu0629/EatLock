@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+/// フローティングアクションボタン
+/// Issue #37の要件: プラスボタンアニメーションとインタラクティブ要素の実装
 struct FloatingAddButton: View {
     let onTap: () -> Void
     
@@ -25,143 +27,145 @@ struct FloatingAddButton: View {
     }
     
     var body: some View {
-        Button(action: {
-            handleTap()
-        }) {
-            ZStack {
-                // メインボタン
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.blue, .cyan]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 56, height: 56)
-                    .shadow(
-                        color: Color.blue.opacity(0.3),
-                        radius: isPressed ? 8 : 12,
-                        x: 0,
-                        y: isPressed ? 4 : 8
-                    )
-                
-                // プラスアイコン
-                Image(systemName: "plus")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white)
-                    .rotationEffect(.degrees(rotation))
-                
-                // 長押し時のプレビューサークル
-                if isLongPressed {
+        if shouldShow {
+            Button(action: {
+                handleTap()
+            }) {
+                ZStack {
+                    // メインボタン
                     Circle()
-                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
-                        .frame(width: 80, height: 80)
-                        .scaleEffect(scale)
-                        .opacity(1 - scale + 0.5)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 56, height: 56)
+                        .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                    
+                    // プラスアイコン
+                    Image(systemName: "plus")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                        .rotationEffect(.degrees(rotation))
                 }
             }
-        }
-        .scaleEffect(shouldShow ? (isPressed ? 0.9 : 1.0 + bounce) : 0.1)
-        .opacity(shouldShow ? 1 : 0)
-        .animation(
-            .spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0),
-            value: shouldShow
-        )
-        .animation(
-            .spring(response: 0.3, dampingFraction: 0.6),
-            value: isPressed
-        )
-        .onLongPressGesture(
-            minimumDuration: 0.5,
-            maximumDistance: 50,
-            pressing: { pressing in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isPressed = pressing
+            .scaleEffect(scale)
+            .offset(y: bounce)
+            .onLongPressGesture(
+                minimumDuration: 0.5,
+                maximumDistance: 50,
+                pressing: { pressing in
+                    handleLongPress(pressing: pressing)
+                },
+                perform: {
+                    handleLongPressComplete()
                 }
-                
-                if pressing {
-                    startLongPressAnimation()
-                } else {
-                    stopLongPressAnimation()
-                }
-            },
-            perform: {
-                // 長押し完了時のアクション
-                handleLongPress()
+            )
+            .onTapGesture {
+                handleTap()
             }
-        )
-        .onAppear {
-            startFloatingAnimation()
+            .transition(.asymmetric(
+                insertion: .scale.combined(with: .move(edge: .bottom)),
+                removal: .scale.combined(with: .move(edge: .bottom))
+            ))
+            .animation(.spring(response: 0.5, dampingFraction: 0.6), value: shouldShow)
+            .onAppear {
+                startFloatingAnimation()
+            }
         }
     }
     
+    // MARK: - Actions
+    
     private func handleTap() {
-        // タップ時のハプティックフィードバック
+        // タップアニメーション
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            scale = 0.9
+        }
+        
+        // ハプティックフィードバック
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
         
-        // 回転アニメーション
-        withAnimation(.easeInOut(duration: 0.3)) {
-            rotation += 90
-        }
-        
-        // タップアクションを実行
+        // アクション実行
         onTap()
         
-        // 回転をリセット
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            rotation = 0
-        }
-    }
-    
-    private func handleLongPress() {
-        // 長押し時のより強いハプティックフィードバック
-        let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
-        impactFeedback.impactOccurred()
-        
-        // 長押し完了時のアニメーション
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.3)) {
-            bounce = 0.2
-        }
-        
-        // 長押しアクション（通常のタップと同じ）
-        onTap()
-        
-        // バウンスをリセット
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                bounce = 0
+        // スケールを元に戻す
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                scale = 1.0
             }
         }
     }
     
-    private func startLongPressAnimation() {
-        isLongPressed = true
-        
-        // プレビューサークルのアニメーション
-        withAnimation(.easeOut(duration: 1.0).repeatForever(autoreverses: false)) {
-            scale = 1.5
+    private func handleLongPress(pressing: Bool) {
+        if pressing {
+            // 長押し開始 - プレビューアニメーション
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                scale = 1.2
+                rotation = 45
+            }
+            
+            // より強いハプティックフィードバック
+            let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+            impactFeedback.impactOccurred()
+            
+            isLongPressed = true
+        } else {
+            // 長押し終了
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                scale = 1.0
+                rotation = 0
+            }
+            
+            isLongPressed = false
         }
     }
     
-    private func stopLongPressAnimation() {
-        isLongPressed = false
-        scale = 1.0
+    private func handleLongPressComplete() {
+        // 長押し完了時のアニメーション
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.3)) {
+            scale = 1.1
+        }
+        
+        // 成功のハプティックフィードバック
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.success)
+        
+        // プレビュー効果を示すために一瞬拡大
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                scale = 1.0
+            }
+        }
     }
     
+    // MARK: - Animations
+    
     private func startFloatingAnimation() {
-        // 浮き上がるアニメーション（微細な上下動）
+        // 浮き上がりアニメーション（連続的な上下動）
         withAnimation(
             .easeInOut(duration: 2.0)
             .repeatForever(autoreverses: true)
         ) {
-            bounce = 0.02
+            bounce = -8
+        }
+        
+        // 微細な回転アニメーション（装飾的）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(
+                .linear(duration: 20.0)
+                .repeatForever(autoreverses: false)
+            ) {
+                rotation = 360
+            }
         }
     }
 }
 
-/// スクロール位置を監視するためのPreferenceKey
+/// スクロール位置監視用のPreferenceKey
 struct ScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     
@@ -170,7 +174,7 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
     }
 }
 
-/// スクロール位置を検出するためのヘルパービュー
+/// スクロール位置検出ヘルパービュー
 struct ScrollOffsetReader: View {
     var body: some View {
         GeometryReader { geometry in
@@ -184,57 +188,43 @@ struct ScrollOffsetReader: View {
     }
 }
 
+// MARK: - Preview
+
 #Preview {
     @State var isInputFocused = false
     @State var scrollOffset: CGFloat = 100
     
     return ZStack {
-        Color.gray.opacity(0.1)
+        Color(.systemBackground)
             .ignoresSafeArea()
         
         VStack {
-            Spacer()
+            Toggle("入力フォーカス", isOn: $isInputFocused)
+                .padding()
             
+            Slider(value: $scrollOffset, in: 0...200)
+                .padding()
+            
+            Text("スクロールオフセット: \(Int(scrollOffset))")
+                .padding()
+            
+            Spacer()
+        }
+        
+        VStack {
+            Spacer()
             HStack {
                 Spacer()
-                
                 FloatingAddButton(
                     onTap: {
-                        print("Floating button tapped!")
+                        print("フローティングボタンがタップされました")
                     },
                     isInputFocused: $isInputFocused,
                     scrollOffset: $scrollOffset
                 )
                 .padding(.trailing, 20)
-                .padding(.bottom, 100)
+                .padding(.bottom, 80)
             }
-        }
-        
-        VStack {
-            HStack {
-                Text("Input Focused: \(isInputFocused ? "Yes" : "No")")
-                Spacer()
-                Button("Toggle Input") {
-                    isInputFocused.toggle()
-                }
-            }
-            .padding()
-            
-            HStack {
-                Text("Scroll Offset: \(Int(scrollOffset))")
-                Spacer()
-                VStack {
-                    Button("Scroll Up") {
-                        scrollOffset += 50
-                    }
-                    Button("Scroll Down") {
-                        scrollOffset -= 50
-                    }
-                }
-            }
-            .padding()
-            
-            Spacer()
         }
     }
 }

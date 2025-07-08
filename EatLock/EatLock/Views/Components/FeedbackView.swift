@@ -156,9 +156,10 @@ struct FeedbackView: View {
     }
     
     private var formattedDate: String {
+        // 他のビューと一貫したフォーマットを使用
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.dateFormat = "yyyy/MM/dd HH:mm"
+        formatter.locale = Locale.current
         return formatter.string(from: feedback.generatedAt)
     }
 }
