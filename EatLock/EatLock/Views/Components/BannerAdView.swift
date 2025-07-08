@@ -112,7 +112,7 @@ struct FixedBannerAdView: View {
         switch adManager.adLoadingState {
         case .loaded, .loading:
             return true
-        case .idle, .failed:
+        case .idle, .failed, .waitingForConsent:
             return false
         }
     }
@@ -210,6 +210,9 @@ struct AdaptiveBannerAdView: View {
                             .id(retryTrigger) // トリガーでビューを再生成
                     case .failed:
                         // 失敗時は完全に非表示（要件に従い）
+                        EmptyView()
+                    case .waitingForConsent:
+                        // 同意待ち状態では何も表示しない
                         EmptyView()
                     }
                 }

@@ -7,6 +7,7 @@
 
 import Foundation
 import GoogleMobileAds
+// import UserMessagingPlatform // 実際のSDK追加後にコメントアウトを解除
 import SwiftUI
 import os.log
 
@@ -29,6 +30,12 @@ protocol AdServiceProtocol {
     
     /// 広告読み込み状態をリセット
     func resetAdLoadingState()
+    
+    /// ユーザー同意状態の確認
+    func checkConsentStatus()
+    
+    /// 同意フォームの表示
+    func presentConsentForm()
 }
 
 /// 広告読み込み状態
@@ -37,6 +44,15 @@ enum AdLoadingState {
     case loading
     case loaded
     case failed(Error)
+    case waitingForConsent // ユーザー同意待ち
+}
+
+/// ユーザー同意状態
+enum ConsentStatus {
+    case unknown
+    case required
+    case notRequired
+    case obtained
 }
 
 /// AdMobを使用した広告サービス実装
@@ -45,6 +61,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     static let shared = AdManager()
     
     @Published var adLoadingState: AdLoadingState = .idle
+    @Published var consentStatus: ConsentStatus = .unknown
     
     // 現在のバナービューの弱参照（簡素化）
     private weak var currentBannerView: GADBannerView?
@@ -72,7 +89,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     var isAdAvailable: Bool {
         switch adLoadingState {
         case .loaded:
-            return true
+            return consentStatus == .obtained || consentStatus == .notRequired
         default:
             return false
         }
@@ -84,8 +101,77 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     /// 広告SDKを初期化
     func initialize() {
+        // プライバシー同意状態を先に確認
+        checkConsentStatus()
+        
+        // AdMob SDKの初期化
         GADMobileAds.sharedInstance().start { [weak self] status in
             self?.handleInitializationResult(status)
+        }
+    }
+    
+    /// ユーザー同意状態の確認
+    func checkConsentStatus() {
+        logger.info("ユーザー同意状態を確認中...")
+        
+        // TODO: UserMessagingPlatform SDK追加後に実装
+        // UMPConsentInformation.sharedInstance.requestConsentInfoUpdate(...)
+        
+        // 暫定的な実装（実際のSDK追加後に置き換え）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            // EEA/UK地域の判定（簡易版）
+            let locale = Locale.current
+            let isEEARegion = self?.isEEARegion(locale: locale) ?? false
+            
+            if isEEARegion {
+                self?.consentStatus = .required
+                self?.adLoadingState = .waitingForConsent
+                self?.logger.info("EEA地域のため、ユーザー同意が必要です")
+            } else {
+                self?.consentStatus = .notRequired
+                self?.logger.info("非EEA地域のため、ユーザー同意は不要です")
+            }
+        }
+    }
+    
+    /// EEA地域の判定（簡易版）
+    private func isEEARegion(locale: Locale) -> Bool {
+        guard let regionCode = locale.region?.identifier else { return false }
+        
+        // EEA/UK地域のコード（簡易リスト）
+        let eeaRegions = [
+            "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+            "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL",
+            "PL", "PT", "RO", "SK", "SI", "ES", "SE", "GB", "IS", "LI", "NO"
+        ]
+        
+        return eeaRegions.contains(regionCode)
+    }
+    
+    /// 同意フォームの表示
+    func presentConsentForm() {
+        guard consentStatus == .required else {
+            logger.warning("同意フォームの表示が不要な状態です")
+            return
+        }
+        
+        logger.info("同意フォームを表示中...")
+        
+        // TODO: UserMessagingPlatform SDK追加後に実装
+        // UMPConsentForm.present(from: viewController) { [weak self] error in
+        //     if let error = error {
+        //         self?.logger.error("同意フォーム表示エラー: \(error.localizedDescription)")
+        //     } else {
+        //         self?.consentStatus = .obtained
+        //         self?.logger.info("ユーザー同意を取得しました")
+        //     }
+        // }
+        
+        // 暫定的な実装（実際のSDK追加後に置き換え）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.consentStatus = .obtained
+            self?.adLoadingState = .idle
+            self?.logger.info("ユーザー同意を取得しました（暫定実装）")
         }
     }
     
@@ -108,12 +194,21 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     /// バナー広告を読み込み
     func loadBannerAd(for view: GADBannerView) {
+        // ユーザー同意が必要な場合は読み込みを待機
+        guard consentStatus == .obtained || consentStatus == .notRequired else {
+            logger.info("ユーザー同意待ちのため、広告読み込みを待機します")
+            adLoadingState = .waitingForConsent
+            return
+        }
+        
         adLoadingState = .loading
         currentBannerView = view
         
         let request = GADRequest()
         view.delegate = self
         view.load(request)
+        
+        logger.info("バナー広告の読み込みを開始しました")
     }
     
     /// 広告読み込みを再試行
@@ -137,11 +232,14 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
 /// 広告読み込みエラー
 enum AdLoadingError: Error, LocalizedError {
     case bannerViewNotFound
+    case consentRequired
     
     var errorDescription: String? {
         switch self {
         case .bannerViewNotFound:
             return "バナービューが見つかりません"
+        case .consentRequired:
+            return "ユーザー同意が必要です"
         }
     }
 }

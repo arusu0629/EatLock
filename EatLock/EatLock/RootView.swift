@@ -14,6 +14,8 @@ struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     private let router = NavigationRouter.shared
     @State private var repository: ActionLogRepository?
+    @ObservedObject private var adManager = AdManager.shared
+    @State private var showConsentForm = false
     
     var body: some View {
         NavigationStack(path: $router.navigationPath) {
@@ -24,8 +26,19 @@ struct RootView: View {
                 }
         }
         .withNavigationRouter(router)
+        .sheet(isPresented: $showConsentForm) {
+            ConsentFormView()
+        }
         .onAppear {
             setupRepository()
+            // 広告サービスを初期化
+            adManager.initialize()
+        }
+        .onChange(of: adManager.consentStatus) { _, newStatus in
+            // 同意が必要な場合はフォームを表示
+            if newStatus == .required {
+                showConsentForm = true
+            }
         }
     }
     
