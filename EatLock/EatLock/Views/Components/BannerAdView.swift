@@ -178,6 +178,8 @@ struct AdaptiveBannerAdView: View {
                     AdErrorView(error: error) {
                         // AdManagerの再試行機能を使用
                         adManager.retryAdLoading()
+                        // retryTriggerを変更してビューを再生成
+                        retryTrigger.toggle()
                     }
                 }
             }
