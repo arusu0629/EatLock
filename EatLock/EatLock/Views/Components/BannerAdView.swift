@@ -17,16 +17,13 @@ struct BannerAdView: UIViewRepresentable {
     
     @ObservedObject private var adManager = AdManager.shared
     
-    /// テスト広告Unit ID
-    static let testAdUnitID = "ca-app-pub-3940256099942544/2934735716"
-    
     /// 初期化
     /// - Parameters:
-    ///   - adUnitID: 広告ユニットID。指定しない場合はテスト広告IDを使用
+    ///   - adUnitID: 広告ユニットID。指定しない場合はAppConfigから取得
     ///   - adSize: 広告サイズ。デフォルトはバナーサイズ
     ///   - onRetry: リトライ時のコールバック
     init(adUnitID: String? = nil, adSize: GADAdSize = GADAdSizeBanner, onRetry: (() -> Void)? = nil) {
-        self.adUnitID = adUnitID ?? Self.testAdUnitID
+        self.adUnitID = adUnitID ?? AppConfig.currentBannerAdUnitID
         self.adSize = adSize
         self.onRetry = onRetry
     }
@@ -94,7 +91,7 @@ struct FixedBannerAdView: View {
     
     /// 初期化
     /// - Parameters:
-    ///   - adUnitID: 広告ユニットID。指定しない場合はテスト広告IDを使用
+    ///   - adUnitID: 広告ユニットID。指定しない場合はAppConfigから取得
     ///   - backgroundColor: 背景色。デフォルトは白
     init(adUnitID: String? = nil, backgroundColor: Color = .white) {
         self.adUnitID = adUnitID
@@ -235,6 +232,8 @@ struct AdaptiveBannerAdView: View {
 // MARK: - UIApplication Extension
 extension UIApplication {
     var activeWindow: UIWindow? {
+        // iOS 18.0以上のみサポートのため、常にscene ベースのAPIを使用
+
         // 1. 現在のアクティブなシーンの keyWindow を取得
         if let windowScene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
@@ -259,7 +258,10 @@ extension UIApplication {
             return window
         }
         
-        // 4. 最後の手段: 従来のアプローチ（iOS 13以前互換）
-        return UIApplication.shared.windows.first
+        // 4. 最後の手段: 全てのシーンから最初のウィンドウを取得
+        return UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first
     }
 }
