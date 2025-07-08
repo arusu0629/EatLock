@@ -138,6 +138,42 @@ struct NotificationTestView: View {
                     Text("アクション")
                 }
                 
+                // プライバシー設定テストセクション（デバッグ用）
+                #if DEBUG
+                Section {
+                    VStack(spacing: 12) {
+                        Button(action: {
+                            AdManager.shared.resetConsentForTesting()
+                            showAlert(message: "プライバシー同意状態をリセットしました")
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundColor(.blue)
+                                Text("プライバシー同意をリセット")
+                            }
+                        }
+                        
+                        HStack {
+                            Text("同意状態:")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(consentStatusText)
+                                .fontWeight(.medium)
+                        }
+                        
+                        HStack {
+                            Text("広告状態:")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(adLoadingStateText)
+                                .fontWeight(.medium)
+                        }
+                    }
+                } header: {
+                    Text("プライバシー設定テスト (DEBUG)")
+                }
+                #endif
+                
                 // 新機能テストセクション
                 Section {
                     VStack(spacing: 12) {
@@ -318,6 +354,36 @@ struct NotificationTestView: View {
     private var canScheduleNotification: Bool {
         return notificationManager.authorizationStatus == .authorized
     }
+    
+    #if DEBUG
+    private var consentStatusText: String {
+        switch AdManager.shared.consentStatus {
+        case .unknown:
+            return "不明"
+        case .required:
+            return "必要"
+        case .notRequired:
+            return "不要"
+        case .obtained:
+            return "取得済み"
+        }
+    }
+    
+    private var adLoadingStateText: String {
+        switch AdManager.shared.adLoadingState {
+        case .idle:
+            return "待機中"
+        case .loading:
+            return "読み込み中"
+        case .loaded:
+            return "読み込み完了"
+        case .failed:
+            return "失敗"
+        case .waitingForConsent:
+            return "同意待ち"
+        }
+    }
+    #endif
 }
 
 // MARK: - Supporting Views

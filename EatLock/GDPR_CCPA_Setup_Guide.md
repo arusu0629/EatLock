@@ -4,6 +4,8 @@
 
 このガイドでは、EatLockアプリにGDPR/CCPA対応のプライバシー配慮機能を実装するための手順を説明します。
 
+**✅ 実装完了**: UserMessagingPlatform SDKを使用した実際のGDPR/CCPA対応が実装されています。
+
 ## 必要なSDKの追加
 
 ### 1. Google Mobile Ads SDK
@@ -50,19 +52,19 @@ targets: [
 
 ## AdServiceの更新
 
-SDK追加後、以下の手順でAdServiceを更新してください：
+**✅ 実装完了**: 以下の実装が既に完了しています：
 
 ### 1. インポート文の更新
 
-`AdService.swift`の先頭で、コメントアウトされているインポート文を有効化：
+`AdService.swift`でUserMessagingPlatformのインポートが有効化されています：
 
 ```swift
-import UserMessagingPlatform // コメントアウトを解除
+import UserMessagingPlatform
 ```
 
-### 2. 実際のUMP実装に置き換え
+### 2. 実際のUMP実装
 
-`checkConsentStatus()`メソッド内の暫定実装を、実際のUMP SDKの実装に置き換え：
+`checkConsentStatus()`メソッドで実際のUMP SDKを使用：
 
 ```swift
 func checkConsentStatus() {
@@ -100,7 +102,7 @@ func checkConsentStatus() {
 
 ### 3. 同意フォーム表示の実装
 
-`presentConsentForm()`メソッドの暫定実装を実際の実装に置き換え：
+`presentConsentForm()`メソッドで実際のUMP同意フォームを表示：
 
 ```swift
 func presentConsentForm() {
@@ -175,12 +177,17 @@ func presentConsentForm() {
 3. **アプリを再起動**
 4. **同意フォームが表示されないことを確認**
 
-### 3. 同意状態のリセット
+### 3. 同意状態のリセット（デバッグ機能）
 
-テスト中に同意状態をリセットする場合：
+**✅ 実装完了**: NotificationTestViewにデバッグ用のリセット機能が追加されています：
+
+1. **アプリでNotificationTestViewに移動**
+2. **「プライバシー同意をリセット」ボタンをタップ**
+3. **同意状態と広告状態がリアルタイムで表示される**
+
+デバッグ用のリセットメソッドも実装済み：
 
 ```swift
-// デバッグ用のリセットメソッド（本番では削除）
 #if DEBUG
 func resetConsentForTesting() {
     UMPConsentInformation.sharedInstance.reset()

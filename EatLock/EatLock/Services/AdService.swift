@@ -7,7 +7,7 @@
 
 import Foundation
 import GoogleMobileAds
-// import UserMessagingPlatform // 実際のSDK追加後にコメントアウトを解除
+import UserMessagingPlatform // 実際のSDK追加後にコメントアウトを解除
 import SwiftUI
 import os.log
 
@@ -114,38 +114,34 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     func checkConsentStatus() {
         logger.info("ユーザー同意状態を確認中...")
         
-        // TODO: UserMessagingPlatform SDK追加後に実装
-        // UMPConsentInformation.sharedInstance.requestConsentInfoUpdate(...)
+        let parameters = UMPRequestParameters()
+        parameters.tagForUnderAgeOfConsent = false
         
-        // 暫定的な実装（実際のSDK追加後に置き換え）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            // EEA/UK地域の判定（簡易版）
-            let locale = Locale.current
-            let isEEARegion = self?.isEEARegion(locale: locale) ?? false
-            
-            if isEEARegion {
-                self?.consentStatus = .required
-                self?.adLoadingState = .waitingForConsent
-                self?.logger.info("EEA地域のため、ユーザー同意が必要です")
-            } else {
-                self?.consentStatus = .notRequired
-                self?.logger.info("非EEA地域のため、ユーザー同意は不要です")
+        UMPConsentInformation.sharedInstance.requestConsentInfoUpdate(with: parameters) { [weak self] error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.logger.error("同意情報取得エラー: \(error.localizedDescription)")
+                    self?.consentStatus = .notRequired
+                } else {
+                    let status = UMPConsentInformation.sharedInstance.consentStatus
+                    switch status {
+                    case .required:
+                        self?.consentStatus = .required
+                        self?.adLoadingState = .waitingForConsent
+                        self?.logger.info("ユーザー同意が必要です")
+                    case .notRequired:
+                        self?.consentStatus = .notRequired
+                        self?.logger.info("ユーザー同意は不要です")
+                    case .obtained:
+                        self?.consentStatus = .obtained
+                        self?.logger.info("ユーザー同意を取得済みです")
+                    default:
+                        self?.consentStatus = .unknown
+                        self?.logger.warning("不明な同意状態です")
+                    }
+                }
             }
         }
-    }
-    
-    /// EEA地域の判定（簡易版）
-    private func isEEARegion(locale: Locale) -> Bool {
-        guard let regionCode = locale.region?.identifier else { return false }
-        
-        // EEA/UK地域のコード（簡易リスト）
-        let eeaRegions = [
-            "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
-            "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL",
-            "PL", "PT", "RO", "SK", "SI", "ES", "SE", "GB", "IS", "LI", "NO"
-        ]
-        
-        return eeaRegions.contains(regionCode)
     }
     
     /// 同意フォームの表示
@@ -157,21 +153,28 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         
         logger.info("同意フォームを表示中...")
         
-        // TODO: UserMessagingPlatform SDK追加後に実装
-        // UMPConsentForm.present(from: viewController) { [weak self] error in
-        //     if let error = error {
-        //         self?.logger.error("同意フォーム表示エラー: \(error.localizedDescription)")
-        //     } else {
-        //         self?.consentStatus = .obtained
-        //         self?.logger.info("ユーザー同意を取得しました")
-        //     }
-        // }
+        guard UMPConsentForm.canPresent else {
+            logger.error("同意フォームを表示できません")
+            return
+        }
         
-        // 暫定的な実装（実際のSDK追加後に置き換え）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.consentStatus = .obtained
-            self?.adLoadingState = .idle
-            self?.logger.info("ユーザー同意を取得しました（暫定実装）")
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            logger.error("ルートビューコントローラーが見つかりません")
+            return
+        }
+        
+        UMPConsentForm.present(from: rootViewController) { [weak self] error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.logger.error("同意フォーム表示エラー: \(error.localizedDescription)")
+                } else {
+                    self?.consentStatus = .obtained
+                    self?.adLoadingState = .idle
+                    self?.logger.info("ユーザー同意を取得しました")
+                }
+            }
         }
     }
     
@@ -227,6 +230,16 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     func resetAdLoadingState() {
         adLoadingState = .idle
     }
+    
+    /// デバッグ用のリセットメソッド（テスト用）
+    #if DEBUG
+    func resetConsentForTesting() {
+        UMPConsentInformation.sharedInstance.reset()
+        consentStatus = .unknown
+        adLoadingState = .idle
+        logger.info("同意状態をリセットしました（テスト用）")
+    }
+    #endif
 }
 
 /// 広告読み込みエラー

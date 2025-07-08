@@ -31,8 +31,6 @@ struct RootView: View {
         }
         .onAppear {
             setupRepository()
-            // 広告サービスを初期化
-            adManager.initialize()
         }
         .onChange(of: adManager.consentStatus) { _, newStatus in
             // 同意が必要な場合はフォームを表示

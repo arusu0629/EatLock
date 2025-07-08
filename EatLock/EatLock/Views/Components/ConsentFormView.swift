@@ -8,11 +8,13 @@
 import SwiftUI
 
 /// プライバシー同意フォームビュー
+/// UMP同意フォームと連携して動作する補完的なUIコンポーネント
 struct ConsentFormView: View {
     @ObservedObject private var adManager = AdManager.shared
     @Environment(\.dismiss) private var dismiss
     
     @State private var isProcessing = false
+    @State private var showingUMPForm = false
     
     var body: some View {
         NavigationView {
@@ -67,7 +69,7 @@ struct ConsentFormView: View {
                 // ボタン
                 VStack(spacing: 12) {
                     Button(action: {
-                        handleConsent(granted: true)
+                        showConsentForm()
                     }) {
                         HStack {
                             if isProcessing {
@@ -75,7 +77,7 @@ struct ConsentFormView: View {
                                     .scaleEffect(0.8)
                                     .tint(.white)
                             }
-                            Text("同意して続行")
+                            Text("同意設定を確認")
                                 .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
@@ -87,9 +89,9 @@ struct ConsentFormView: View {
                     .disabled(isProcessing)
                     
                     Button(action: {
-                        handleConsent(granted: false)
+                        handleSkip()
                     }) {
-                        Text("同意しない")
+                        Text("後で設定")
                             .fontWeight(.medium)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
@@ -105,21 +107,51 @@ struct ConsentFormView: View {
             .navigationTitle("プライバシー設定")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("閉じる") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            // 同意が必要な場合は自動的にUMPフォームを表示
+            if adManager.consentStatus == .required {
+                showConsentForm()
+            }
+        }
+        .onChange(of: adManager.consentStatus) { _, newStatus in
+            // 同意状態が変更されたら処理を停止
+            if newStatus != .required {
+                isProcessing = false
+            }
         }
     }
     
-    /// ユーザーの同意処理
-    private func handleConsent(granted: Bool) {
+    /// UMP同意フォームを表示
+    private func showConsentForm() {
         isProcessing = true
         
-        if granted {
-            adManager.presentConsentForm()
-        } else {
-            // 同意しない場合の処理
-            adManager.consentStatus = .notRequired
-        }
+        // UMP同意フォームを表示
+        adManager.presentConsentForm()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        // 少し待ってから処理完了
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            if adManager.consentStatus == .obtained {
+                dismiss()
+            } else {
+                isProcessing = false
+            }
+        }
+    }
+    
+    /// スキップ処理
+    private func handleSkip() {
+        isProcessing = true
+        
+        // 一時的にスキップ（後で設定可能）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             isProcessing = false
             dismiss()
         }
