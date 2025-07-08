@@ -35,6 +35,15 @@ struct EatLockApp: App {
                 .task {
                     // アプリ起動時にAIを初期化
                     await AIManager.shared.initialize()
+                    
+                    // アプリ起動時に通知マネージャーを初期化
+                    await NotificationManager.shared.initialize()
+                    
+                    // 通知権限を初回のみリクエスト
+                    await NotificationManager.shared.requestPermissionIfNeeded()
+                    
+                    // 広告マネージャーを初期化
+                    AdManager.shared.initialize()
                 }
         }
         .modelContainer(sharedModelContainer)
