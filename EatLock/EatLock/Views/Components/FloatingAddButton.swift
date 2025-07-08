@@ -63,9 +63,6 @@ struct FloatingAddButton: View {
                     handleLongPressComplete()
                 }
             )
-            .onTapGesture {
-                handleTap()
-            }
             .transition(.asymmetric(
                 insertion: .scale.combined(with: .move(edge: .bottom)),
                 removal: .scale.combined(with: .move(edge: .bottom))
@@ -151,16 +148,6 @@ struct FloatingAddButton: View {
             .repeatForever(autoreverses: true)
         ) {
             bounce = -8
-        }
-        
-        // 微細な回転アニメーション（装飾的）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(
-                .linear(duration: 20.0)
-                .repeatForever(autoreverses: false)
-            ) {
-                rotation = 360
-            }
         }
     }
 }

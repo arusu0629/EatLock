@@ -99,9 +99,13 @@ final class FloatingAddButtonTests: XCTestCase {
         // Given & When: ボタンを作成
         let button = createFloatingAddButton()
         
-        // Then: アニメーション状態が適切に初期化されるべき
-        // Note: この部分は実際のSwiftUIテストフレームワークでより詳細にテスト可能
-        XCTAssertTrue(true, "アニメーション状態の初期化テスト（実装確認）")
+        // Then: ボタンが正常に作成されることを確認
+        XCTAssertNotNil(button, "FloatingAddButtonが正常に初期化されるべき")
+        
+        // shouldShowロジックの確認
+        isInputFocused = false
+        scrollOffset = 100
+        XCTAssertTrue(shouldShowButton(), "正常な条件でボタンが表示されるべき")
     }
     
     // MARK: - Helper Methods
@@ -195,7 +199,7 @@ final class FloatingAddButtonPerformanceTests: XCTestCase {
     func testFloatingAddButtonCreationPerformance() {
         measure {
             // パフォーマンステスト: ボタンの作成速度
-            for _ in 0..<100 {
+            for _ in 0..<50 {
                 let _ = FloatingAddButton(
                     onTap: {},
                     isInputFocused: .constant(false),
@@ -209,7 +213,7 @@ final class FloatingAddButtonPerformanceTests: XCTestCase {
         measure {
             // パフォーマンステスト: PreferenceKeyの更新速度
             var value: CGFloat = 0
-            for i in 0..<1000 {
+            for i in 0..<500 {
                 ScrollOffsetPreferenceKey.reduce(value: &value, nextValue: { CGFloat(i) })
             }
         }

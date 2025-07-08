@@ -276,15 +276,22 @@ struct ContentView: View {
     
     private func focusTextInput() {
         // フローティングボタンタップ時にテキスト入力にフォーカス
-        // 注: 実際のフォーカス処理はLogInputViewの内部で処理される
-        // ここではスクロールを最下部に移動
+        // @FocusStateを使った適切なフォーカス管理はLogInputView内で実装
+        // ここではスクロールを最下部に移動してユーザーの注意を入力欄に向ける
         withAnimation(.easeInOut(duration: 0.5)) {
             scrollOffset = 0
         }
+        
+        // ハプティックフィードバックでユーザーに操作完了を知らせる
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
     }
     
+    @State private var keyboardShowObserver: NSObjectProtocol?
+    @State private var keyboardHideObserver: NSObjectProtocol?
+    
     private func setupKeyboardObservers() {
-        NotificationCenter.default.addObserver(
+        keyboardShowObserver = NotificationCenter.default.addObserver(
             forName: UIResponder.keyboardWillShowNotification,
             object: nil,
             queue: .main
@@ -292,7 +299,7 @@ struct ContentView: View {
             isInputFocused = true
         }
         
-        NotificationCenter.default.addObserver(
+        keyboardHideObserver = NotificationCenter.default.addObserver(
             forName: UIResponder.keyboardWillHideNotification,
             object: nil,
             queue: .main
@@ -302,17 +309,15 @@ struct ContentView: View {
     }
     
     private func removeKeyboardObservers() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillShowNotification,
-            object: nil
-        )
+        if let observer = keyboardShowObserver {
+            NotificationCenter.default.removeObserver(observer)
+            keyboardShowObserver = nil
+        }
         
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
+        if let observer = keyboardHideObserver {
+            NotificationCenter.default.removeObserver(observer)
+            keyboardHideObserver = nil
+        }
     }
 }
 
