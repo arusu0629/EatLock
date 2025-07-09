@@ -43,16 +43,21 @@ struct FloatingAddButton: View {
                         )
                         .frame(width: 56, height: 56)
                         .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                        .accessibilityHidden(true)
                     
                     // プラスアイコン
                     Image(systemName: "plus")
                         .font(.system(size: 24, weight: .semibold))
                         .foregroundColor(.white)
                         .rotationEffect(.degrees(rotation))
+                        .accessibilityHidden(true)
                 }
             }
             .scaleEffect(scale)
             .offset(y: bounce)
+            .accessibilityLabel("行動記録追加ボタン")
+            .accessibilityHint("タップすると行動記録の入力欄にフォーカスします")
+            .accessibilityAddTraits(.isButton)
             .onLongPressGesture(
                 minimumDuration: 0.5,
                 maximumDistance: 50,
@@ -172,6 +177,7 @@ struct ScrollOffsetReader: View {
                 )
         }
         .frame(height: 0)
+        .accessibilityHidden(true)
     }
 }
 

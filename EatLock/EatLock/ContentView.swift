@@ -120,7 +120,6 @@ struct ContentView: View {
         }
         .onAppear {
             setupRepository()
-            checkTutorialNeeded()
             setupKeyboardObservers()
         }
         .onDisappear {
@@ -264,15 +263,7 @@ struct ContentView: View {
         }
     }
     
-    private func checkTutorialNeeded() {
-        let hasSeenTutorial = UserDefaults.standard.bool(forKey: "HasSeenTutorial")
-        if !hasSeenTutorial {
-            // 少し遅延させてから表示（アプリの初期化完了後）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                router.presentSheet(.tutorial)
-            }
-        }
-    }
+
     
     private func focusTextInput() {
         // フローティングボタンタップ時にテキスト入力にフォーカス

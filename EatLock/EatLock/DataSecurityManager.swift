@@ -344,6 +344,22 @@ class DataSecurityManager {
 // MARK: - Privacy Settings Codable Extension
 extension DataSecurityManager.PrivacySettings: Codable {}
 
+// MARK: - Bool値の暗号化保存/取得ラッパー
+extension DataSecurityManager {
+    /// Bool値を暗号化してUserDefaultsに保存
+    func saveEncryptedBool(_ value: Bool, forKey key: String) throws {
+        let encrypted = try encryptString(value.description, using: getDeviceEncryptionKey())
+        UserDefaults.standard.set(encrypted, forKey: key)
+    }
+    /// 暗号化されたBool値をUserDefaultsから復号して取得
+    func loadEncryptedBool(forKey key: String) -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let decrypted = try? decryptData(data, using: getDeviceEncryptionKey())
+        else { return false }
+        return Bool(decrypted) ?? false
+    }
+}
+
 // MARK: - Error Types
 enum BiometricAuthError: LocalizedError {
     case authenticationFailed(Error)
