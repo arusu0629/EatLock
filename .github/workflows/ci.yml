@@ -21,7 +21,7 @@ jobs:
         xcode-version: '15.0'
         
     - name: Cache Swift Package Manager
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           EatLock/EatLock.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
@@ -76,7 +76,7 @@ jobs:
         xcrun xccov view --report --json DerivedData/Logs/Test/*.xcresult > coverage.json
         
     - name: Upload Test Coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: EatLock/coverage.json
         flags: unittests
@@ -98,7 +98,7 @@ jobs:
         xcode-version: '15.0'
         
     - name: Cache Swift Package Manager
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           EatLock/EatLock.xcodeproj/project.xcworkspace/xcshareddata/swiftpm

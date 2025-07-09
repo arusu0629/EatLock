@@ -61,15 +61,11 @@ final class EatLockUITests: XCTestCase {
         submitButton.tap()
         
         // 8. 入力フィールドがクリアされることを確認
-        let expectation = XCTestExpectation(description: "入力フィールドがクリアされる")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            XCTAssertEqual(logInputField.value as? String ?? "", "", "入力フィールドがクリアされていない")
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 5.0)
+        TestHelpers.waitAsync(duration: 1.0, timeout: 5.0, description: "入力フィールドがクリアされる")
+        XCTAssertEqual(logInputField.value as? String ?? "", "", "入力フィールドがクリアされていない")
         
         // 9. フィードバックまたはトーストの表示を確認
-        let feedbackExists = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'カロリー' OR label CONTAINS[c] '素晴らしい' OR label CONTAINS[c] '我慢'")).firstMatch.exists
+        let feedbackExists = TestHelpers.waitForFeedback(in: app)
         let toastExists = app.staticTexts["行動ログを保存しました"].exists
         XCTAssertTrue(feedbackExists || toastExists, "フィードバックまたはトーストが表示されていない")
         
@@ -78,8 +74,7 @@ final class EatLockUITests: XCTestCase {
         XCTAssertTrue(statsCard.exists, "統計カードが表示されていない")
         
         // 11. ログ一覧に新しいログが追加されることを確認
-        let logListItem = app.staticTexts[testLogContent]
-        XCTAssertTrue(logListItem.waitForExistence(timeout: 3.0), "ログ一覧に新しいログが追加されていない")
+        XCTAssertTrue(TestHelpers.waitForLogItem(in: app, content: testLogContent), "ログ一覧に新しいログが追加されていない")
     }
     
     @MainActor
@@ -249,16 +244,4 @@ final class EatLockUITests: XCTestCase {
 }
 
 // MARK: - Test Helper Extensions
-
-extension XCUIElement {
-    func clearText() {
-        guard let stringValue = self.value as? String else {
-            return
-        }
-        
-        self.tap()
-        
-        let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: stringValue.count)
-        self.typeText(deleteString)
-    }
-}
+// 共通のテストヘルパーはTestHelpers.swiftで定義されています

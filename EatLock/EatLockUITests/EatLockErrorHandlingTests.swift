@@ -80,15 +80,7 @@ final class EatLockErrorHandlingTests: XCTestCase {
         
         // エラーメッセージまたは成功メッセージが表示されることを確認
         // ネットワーク状況によって結果が異なるため、何らかのフィードバックがあることを確認
-        let feedbackExists = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'エラー' OR label CONTAINS[c] '保存' OR label CONTAINS[c] 'カロリー'")).firstMatch.exists
-        
-        if feedbackExists {
-            XCTAssertTrue(feedbackExists, "フィードバックが表示されていない")
-        } else {
-            // フィードバックが表示されない場合は、少し待ってから再確認
-            let delayedFeedback = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'エラー' OR label CONTAINS[c] '保存' OR label CONTAINS[c] 'カロリー'")).firstMatch
-            XCTAssertTrue(delayedFeedback.waitForExistence(timeout: 5.0), "フィードバックが表示されていない")
-        }
+        XCTAssertTrue(TestHelpers.waitForFeedback(in: app), "フィードバックが表示されていない")
     }
     
     @MainActor
@@ -105,18 +97,16 @@ final class EatLockErrorHandlingTests: XCTestCase {
             logInputField.typeText("データベーステスト \(i)")
             submitButton.tap()
             
-            // 短い間隔で次の入力を行う
-            Thread.sleep(forTimeInterval: 0.5)
+            // 短い間隔で次の入力を行う - 非同期待機に変更
+            let expectation = XCTestExpectation(description: "Wait for processing")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                expectation.fulfill()
+            }
+            wait(for: [expectation], timeout: 1.0)
         }
         
         // エラーメッセージまたは成功メッセージが表示されることを確認
-        let feedbackExists = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'エラー' OR label CONTAINS[c] '保存' OR label CONTAINS[c] 'カロリー'")).firstMatch.exists
-        
-        if !feedbackExists {
-            // 少し待ってから再確認
-            let delayedFeedback = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'エラー' OR label CONTAINS[c] '保存' OR label CONTAINS[c] 'カロリー'")).firstMatch
-            XCTAssertTrue(delayedFeedback.waitForExistence(timeout: 3.0), "フィードバックが表示されていない")
-        }
+        XCTAssertTrue(TestHelpers.waitForFeedback(in: app, timeout: 3.0), "フィードバックが表示されていない")
     }
     
     @MainActor
@@ -133,13 +123,7 @@ final class EatLockErrorHandlingTests: XCTestCase {
         submitButton.tap()
         
         // エラーメッセージまたは成功メッセージが表示されることを確認
-        let feedbackExists = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'エラー' OR label CONTAINS[c] '保存' OR label CONTAINS[c] 'カロリー'")).firstMatch.exists
-        
-        if !feedbackExists {
-            // 少し待ってから再確認
-            let delayedFeedback = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'エラー' OR label CONTAINS[c] '保存' OR label CONTAINS[c] 'カロリー'")).firstMatch
-            XCTAssertTrue(delayedFeedback.waitForExistence(timeout: 5.0), "フィードバックが表示されていない")
-        }
+        XCTAssertTrue(TestHelpers.waitForFeedback(in: app), "フィードバックが表示されていない")
     }
     
     @MainActor
@@ -156,12 +140,16 @@ final class EatLockErrorHandlingTests: XCTestCase {
             logInputField.typeText("メモリプレッシャーテスト \(i) - " + String(repeating: "データ", count: 50))
             submitButton.tap()
             
-            // 短い間隔で次の入力を行う
-            Thread.sleep(forTimeInterval: 0.2)
+            // 短い間隔で次の入力を行う - 非同期待機に変更
+            let expectation = XCTestExpectation(description: "Wait for processing")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                expectation.fulfill()
+            }
+            wait(for: [expectation], timeout: 0.5)
         }
         
         // アプリがクラッシュしないことを確認
-        XCTAssertTrue(app.state == .runningForeground, "アプリがクラッシュした")
+        XCTAssertTrue(TestHelpers.isAppRunning(app), "アプリがクラッシュした")
         
         // 最後の入力が正常に処理されることを確認
         let lastLogItem = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'メモリプレッシャーテスト'")).firstMatch
@@ -219,7 +207,7 @@ final class EatLockErrorHandlingTests: XCTestCase {
         }
         
         // アプリが安定した状態を維持することを確認
-        XCTAssertTrue(app.state == .runningForeground, "アプリの状態が不安定")
+        XCTAssertTrue(TestHelpers.isAppRunning(app), "アプリの状態が不安定")
         
         // 最終的にログが表示されることを確認
         let logExists = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] '同時操作テスト'")).firstMatch.exists
@@ -232,16 +220,4 @@ final class EatLockErrorHandlingTests: XCTestCase {
 }
 
 // MARK: - Test Helper Extensions
-
-extension XCUIElement {
-    func clearText() {
-        guard let stringValue = self.value as? String else {
-            return
-        }
-        
-        self.tap()
-        
-        let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: stringValue.count)
-        self.typeText(deleteString)
-    }
-}
+// 共通のテストヘルパーはTestHelpers.swiftで定義されています

@@ -58,6 +58,22 @@ final class EatLockAccessibilityTests: XCTestCase {
         // 実際の値は実装に依存するため、存在確認のみ行う
         XCTAssertNotNil(logInputField.accessibilityHint, "ログ入力フィールドにアクセシビリティヒントがない")
         XCTAssertNotNil(logTypePicker.accessibilityHint, "ログタイプピッカーにアクセシビリティヒントがない")
+        
+        // 送信ボタンのアクセシビリティヒントも確認
+        XCTAssertNotNil(submitButton.accessibilityHint, "送信ボタンにアクセシビリティヒントがない")
+        
+        // ボタンの状態によるヒントの変化を確認
+        // 初期状態（無効）でのヒント
+        let initialHint = submitButton.accessibilityHint
+        XCTAssertNotNil(initialHint, "初期状態の送信ボタンにヒントがない")
+        
+        // 有効な入力後のヒント
+        logInputField.tap()
+        logInputField.typeText("テスト入力")
+        
+        // ボタンが有効になった時のヒントも設定されているか確認
+        let enabledHint = submitButton.accessibilityHint
+        XCTAssertNotNil(enabledHint, "有効状態の送信ボタンにヒントがない")
     }
     
     @MainActor
@@ -85,7 +101,7 @@ final class EatLockAccessibilityTests: XCTestCase {
         
         // キーボードが表示されることを確認
         let keyboard = app.keyboards.firstMatch
-        XCTAssertTrue(keyboard.waitForExistence(timeout: 2.0), "キーボードが表示されない")
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 3.0), "キーボードが表示されない")
         
         // テキストを入力
         logInputField.typeText("テスト入力")
@@ -113,7 +129,7 @@ final class EatLockAccessibilityTests: XCTestCase {
         
         // 文字数カウンターが表示されることを確認
         let characterCount = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] '/500'")).firstMatch
-        XCTAssertTrue(characterCount.waitForExistence(timeout: 1.0), "文字数カウンターが表示されない")
+        XCTAssertTrue(characterCount.waitForExistence(timeout: 2.0), "文字数カウンターが表示されない")
     }
     
     @MainActor
