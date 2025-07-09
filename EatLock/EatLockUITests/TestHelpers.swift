@@ -154,18 +154,23 @@ class TestHelpers {
     ///   - timeout: タイムアウト時間
     /// - Returns: すべての条件が満たされたかどうか
     static func waitForMultipleConditions(_ conditions: [() -> Bool], timeout: TimeInterval = 5.0) -> Bool {
-        let startTime = Date()
+        let expectation = XCTestExpectation(description: "Wait for multiple conditions")
+        var conditionsMet = false
         
-        repeat {
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
             let allConditionsMet = conditions.allSatisfy { $0() }
             if allConditionsMet {
-                return true
+                conditionsMet = true
+                expectation.fulfill()
+                timer.invalidate()
             }
-            
-            Thread.sleep(forTimeInterval: 0.1)
-        } while Date().timeIntervalSince(startTime) < timeout
+        }
         
-        return false
+        let testCase = XCTestCase()
+        let result = testCase.wait(for: [expectation], timeout: timeout)
+        timer.invalidate()
+        
+        return conditionsMet && result == .completed
     }
 }
 

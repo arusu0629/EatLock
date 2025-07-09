@@ -80,16 +80,28 @@ final class EatLockAccessibilityTests: XCTestCase {
     func testDynamicTypeSupport() throws {
         // ダイナミックタイプサポートのテスト
         
+        // 大きなフォントサイズでアプリを起動
+        let largeTextApp = XCUIApplication()
+        largeTextApp.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"]
+        largeTextApp.launch()
+        
         // 大きなテキストサイズでもUIが適切に表示されることを確認
-        let logInputField = app.textFields["今日の行動を入力..."]
+        let logInputField = largeTextApp.textFields["今日の行動を入力..."]
         XCTAssertTrue(logInputField.exists, "ログ入力フィールドが存在しない")
         
         // フィールドがタップ可能であることを確認
         XCTAssertTrue(logInputField.isHittable, "ログ入力フィールドがタップできない")
         
-        let submitButton = app.buttons["送信ボタン"]
+        let submitButton = largeTextApp.buttons["送信ボタン"]
         XCTAssertTrue(submitButton.exists, "送信ボタンが存在しない")
         XCTAssertTrue(submitButton.isHittable, "送信ボタンがタップできない")
+        
+        // 大きなフォントサイズでもテキスト入力と送信が正常に動作することを確認
+        logInputField.tap()
+        logInputField.typeText("大きなフォントサイズでのテスト")
+        
+        // 送信ボタンが有効になることを確認
+        XCTAssertTrue(submitButton.isEnabled, "大きなフォントサイズで送信ボタンが有効にならない")
     }
     
     @MainActor

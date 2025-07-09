@@ -71,6 +71,11 @@ struct SecurityTests {
         
         // 暗号化されたデータが元のデータと異なることを確認
         if let feedback = encryptedFeedback {
+            // まず暗号化されたデータがフィードバックと異なることを確認
+            let originalFeedback = "今日はケーキを我慢しました"
+            #expect(feedback != originalFeedback)
+            
+            // その後、復号化されたデータの正確性を検証
             #expect(feedback.contains("我慢") || feedback.contains("カロリー") || feedback.contains("素晴らしい"))
         }
     }
