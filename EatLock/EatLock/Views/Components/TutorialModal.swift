@@ -87,7 +87,7 @@ struct TutorialModal: View {
                         .accessibilityHint("次のチュートリアルページを表示します")
                     } else {
                         Button("始める") {
-                            UserDefaults.standard.set(true, forKey: "HasSeenTutorial")
+                            try? DataSecurityManager.shared.saveEncryptedBool(true, forKey: "HasSeenTutorial")
                             isPresented = false
                         }
                         .foregroundColor(.blue)

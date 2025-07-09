@@ -54,7 +54,7 @@ struct RootView: View {
     
     private func checkTutorialStatus() {
         // 初回起動時のみチュートリアルを表示
-        let hasSeenTutorial = UserDefaults.standard.bool(forKey: "HasSeenTutorial")
+        let hasSeenTutorial = DataSecurityManager.shared.loadEncryptedBool(forKey: "HasSeenTutorial")
         if !hasSeenTutorial {
             showTutorial = true
         }
