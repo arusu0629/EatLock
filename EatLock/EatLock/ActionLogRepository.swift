@@ -49,6 +49,10 @@ class ActionLogRepository {
     
     /// 統計情報を更新（内部メソッド）
     private func updateStatistics() {
+        // 複数のタスクが同時に実行されないように制御
+        guard needsStatsUpdate else { return }
+        needsStatsUpdate = false
+        
         Task { @MainActor in
             do {
                 // 全体の統計情報を更新
@@ -59,15 +63,17 @@ class ActionLogRepository {
                 let todayStats = try calculateTodaysStatistics()
                 self.todaysStats = todayStats
                 
-                self.needsStatsUpdate = false
             } catch {
                 print("統計情報の更新に失敗しました: \(error)")
+                // エラーの場合は再試行を許可
+                self.needsStatsUpdate = true
             }
         }
     }
     
     /// 統計情報を強制的に更新
     public func refreshStatistics() {
+        needsStatsUpdate = true
         updateStatistics()
     }
     
@@ -130,6 +136,7 @@ class ActionLogRepository {
         do {
             try modelContext.save()
             // 統計情報を更新
+            needsStatsUpdate = true
             updateStatistics()
             return actionLog
         } catch {
@@ -157,7 +164,9 @@ class ActionLogRepository {
     func fetchTodaysActionLogs() throws -> [ActionLog] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+            throw ActionLogError.fetchFailed(NSError(domain: "DateCalculationError", code: 1, userInfo: [NSLocalizedDescriptionKey: "日付の計算に失敗しました"]))
+        }
         
         let predicate = #Predicate<ActionLog> { log in
             log.timestamp >= startOfDay && log.timestamp < endOfDay

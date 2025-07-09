@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v3
+      with:
+        path: |
+          EatLock/EatLock.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+          ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+          
+    - name: Resolve Swift Package Dependencies
+      run: |
+        cd EatLock
+        xcodebuild -resolvePackageDependencies -project EatLock.xcodeproj -scheme EatLock
+        
+    - name: Build for Testing
+      run: |
+        cd EatLock
+        xcodebuild build-for-testing \
+          -project EatLock.xcodeproj \
+          -scheme EatLock \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=18.0' \
+          -derivedDataPath DerivedData \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Run Unit Tests
+      run: |
+        cd EatLock
+        xcodebuild test-without-building \
+          -project EatLock.xcodeproj \
+          -scheme EatLock \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=18.0' \
+          -derivedDataPath DerivedData \
+          -only-testing:EatLockTests \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Run UI Tests
+      run: |
+        cd EatLock
+        xcodebuild test-without-building \
+          -project EatLock.xcodeproj \
+          -scheme EatLock \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=18.0' \
+          -derivedDataPath DerivedData \
+          -only-testing:EatLockUITests \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Generate Test Coverage Report
+      run: |
+        cd EatLock
+        xcrun xccov view --report --json DerivedData/Logs/Test/*.xcresult > coverage.json
+        
+    - name: Upload Test Coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: EatLock/coverage.json
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        
+  build:
+    name: Build for Release
+    runs-on: macos-latest
+    needs: test
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v3
+      with:
+        path: |
+          EatLock/EatLock.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+          ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+          
+    - name: Build for Release
+      run: |
+        cd EatLock
+        xcodebuild build \
+          -project EatLock.xcodeproj \
+          -scheme EatLock \
+          -configuration Release \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=18.0' \
+          -derivedDataPath DerivedData \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Build for Device
+      run: |
+        cd EatLock
+        xcodebuild build \
+          -project EatLock.xcodeproj \
+          -scheme EatLock \
+          -configuration Release \
+          -destination 'platform=iOS,name=Any iOS Device' \
+          -derivedDataPath DerivedData \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          ONLY_ACTIVE_ARCH=NO
+          
+  analyze:
+    name: Static Analysis
+    runs-on: macos-latest
+    needs: test
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Run Static Analysis
+      run: |
+        cd EatLock
+        xcodebuild analyze \
+          -project EatLock.xcodeproj \
+          -scheme EatLock \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=18.0' \
+          -derivedDataPath DerivedData \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Install SwiftLint
+      run: |
+        brew install swiftlint
+        
+    - name: Run SwiftLint
+      run: |
+        cd EatLock
+        swiftlint --reporter github-actions-logging
+        
+    - name: Check for Swift Warnings
+      run: |
+        cd EatLock
+        xcodebuild build \
+          -project EatLock.xcodeproj \
+          -scheme EatLock \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=18.0' \
+          -derivedDataPath DerivedData \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          -quiet | grep -E "(warning|error):" || echo "No warnings found"
