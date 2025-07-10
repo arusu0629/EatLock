@@ -199,8 +199,7 @@ struct SecurityTests {
         let repository = ActionLogRepository(modelContext: modelContext)
         
         // 複数のタスクで同時にログを作成
-        await withTaskGroup(of: Void.self) { group in
-            var errors: [Error] = []
+        await withTaskGroup(of: Result<Void, Error>.self) { group in
             for i in 0..<10 {
                 group.addTask {
                     do {
@@ -208,9 +207,17 @@ struct SecurityTests {
                             content: "同時アクセステスト \(i)",
                             logType: .success
                         )
+                        return .success(())
                     } catch {
-                        errors.append(error)
+                        return .failure(error)
                     }
+                }
+            }
+            
+            var errors: [Error] = []
+            for await result in group {
+                if case .failure(let error) = result {
+                    errors.append(error)
                 }
             }
             
