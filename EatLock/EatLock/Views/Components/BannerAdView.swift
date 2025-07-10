@@ -47,8 +47,13 @@ struct BannerAdView: UIViewRepresentable {
     
     /// 安全にrootViewControllerを取得
     private func findRootViewController() -> UIViewController? {
-        // UIApplication.shared.activeWindow を使用
-        return UIApplication.shared.activeWindow?.rootViewController
+        // iOS 15以降の推奨方法：connectedScenesから安全に取得
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let window = windowScene.windows.first(where: { $0.isKeyWindow }) else {
+            return nil
+        }
+        return window.rootViewController
     }
 }
 
@@ -224,39 +229,3 @@ struct AdaptiveBannerAdView: View {
     }
 }
 
-// MARK: - UIApplication Extension
-extension UIApplication {
-    var activeWindow: UIWindow? {
-        // iOS 18.0以上のみサポートのため、常にscene ベースのAPIを使用
-
-        // 1. 現在のアクティブなシーンの keyWindow を取得
-        if let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }),
-           let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }) {
-            return keyWindow
-        }
-        
-        // 2. フォールバック: アクティブなシーンの最初のウィンドウ
-        if let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }),
-           let window = windowScene.windows.first {
-            return window
-        }
-        
-        // 3. 最終フォールバック: 最初のシーンの最初のウィンドウ
-        if let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first,
-           let window = windowScene.windows.first {
-            return window
-        }
-        
-        // 4. 最後の手段: 全てのシーンから最初のウィンドウを取得
-        return UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first
-    }
-}

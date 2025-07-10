@@ -15,6 +15,13 @@ class ActionLogRepository {
     private let dataSecurityManager: DataSecurityManager
     private let encryptionKey: Data
     
+    // MARK: - Performance Optimization
+    private var decryptionCache: [UUID: String] = [:]
+    private var aiFeedbackCache: [UUID: String?] = [:]
+    private var statsCache: (stats: ActionLogStats, timestamp: Date)?
+    private let cacheTimeout: TimeInterval = 30
+    private let maxCacheSize = 100
+    
     // MARK: - Reactive Properties
     
     /// 現在の統計情報（リアルタイム更新）
@@ -36,19 +43,31 @@ class ActionLogRepository {
     /// 統計情報の更新が必要かどうかを追跡
     private var needsStatsUpdate: Bool = true
     
+    /// 統計情報更新のタイマー
+    private var statsUpdateTimer: Timer?
+    
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
         self.dataSecurityManager = DataSecurityManager.shared
         self.encryptionKey = dataSecurityManager.getDeviceEncryptionKey()
         
-        // 初期化時に統計情報を更新
-        updateStatistics()
+        // 初期化時に統計情報を更新（非同期で実行）
+        Task.detached(priority: .utility) {
+            await self.updateStatistics()
+        }
+        
+        // 統計情報の定期更新タイマー（バックグラウンドで実行）
+        setupStatsUpdateTimer()
     }
     
     // MARK: - Statistics Update Methods
     
     /// 統計情報を更新（内部メソッド）
     private func updateStatistics() {
+        // 複数のタスクが同時に実行されないように制御
+        guard needsStatsUpdate else { return }
+        needsStatsUpdate = false
+        
         Task { @MainActor in
             do {
                 // 全体の統計情報を更新
@@ -59,15 +78,17 @@ class ActionLogRepository {
                 let todayStats = try calculateTodaysStatistics()
                 self.todaysStats = todayStats
                 
-                self.needsStatsUpdate = false
             } catch {
                 print("統計情報の更新に失敗しました: \(error)")
+                // エラーの場合は再試行を許可
+                self.needsStatsUpdate = true
             }
         }
     }
     
     /// 統計情報を強制的に更新
     public func refreshStatistics() {
+        needsStatsUpdate = true
         updateStatistics()
     }
     
@@ -130,6 +151,7 @@ class ActionLogRepository {
         do {
             try modelContext.save()
             // 統計情報を更新
+            needsStatsUpdate = true
             updateStatistics()
             return actionLog
         } catch {
@@ -157,7 +179,9 @@ class ActionLogRepository {
     func fetchTodaysActionLogs() throws -> [ActionLog] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+            throw ActionLogError.fetchFailed(NSError(domain: "DateCalculationError", code: 1, userInfo: [NSLocalizedDescriptionKey: "日付の計算に失敗しました"]))
+        }
         
         let predicate = #Predicate<ActionLog> { log in
             log.timestamp >= startOfDay && log.timestamp < endOfDay
@@ -447,14 +471,48 @@ class ActionLogRepository {
     
     // MARK: - Encryption Support
     
-    /// 暗号化されたコンテンツを安全に取得
+    /// 暗号化されたコンテンツを安全に取得（キャッシュ対応）
     func getSecureContent(for actionLog: ActionLog) -> String {
-        return actionLog.getSecureContent(using: encryptionKey) ?? actionLog.content
+        // キャッシュから取得を試行
+        if let cached = decryptionCache[actionLog.id] {
+            return cached
+        }
+        
+        let content = actionLog.getSecureContent(using: encryptionKey) ?? actionLog.content
+        
+        // キャッシュに保存（サイズ制限付き）
+        if decryptionCache.count >= maxCacheSize {
+            // 古いエントリを削除
+            let oldestKey = decryptionCache.keys.first
+            if let key = oldestKey {
+                decryptionCache.removeValue(forKey: key)
+            }
+        }
+        decryptionCache[actionLog.id] = content
+        
+        return content
     }
     
-    /// 暗号化されたAIフィードバックを安全に取得
+    /// 暗号化されたAIフィードバックを安全に取得（キャッシュ対応）
     func getSecureAIFeedback(for actionLog: ActionLog) -> String? {
-        return actionLog.getSecureAIFeedback(using: encryptionKey)
+        // キャッシュから取得を試行
+        if let cached = aiFeedbackCache[actionLog.id] {
+            return cached
+        }
+        
+        let feedback = actionLog.getSecureAIFeedback(using: encryptionKey)
+        
+        // キャッシュに保存（サイズ制限付き）
+        if aiFeedbackCache.count >= maxCacheSize {
+            // 古いエントリを削除
+            let oldestKey = aiFeedbackCache.keys.first
+            if let key = oldestKey {
+                aiFeedbackCache.removeValue(forKey: key)
+            }
+        }
+        aiFeedbackCache[actionLog.id] = feedback
+        
+        return feedback
     }
     
     /// 短縮表示用の安全なコンテンツを取得
@@ -466,27 +524,98 @@ class ActionLogRepository {
         return contentText
     }
     
-    /// 複数のActionLogに対して効率的にセキュアコンテンツを取得
-    func getSecureContents(for actionLogs: [ActionLog]) -> [ActionLog: String] {
-        var results: [ActionLog: String] = [:]
-        for actionLog in actionLogs {
-            results[actionLog] = getSecureContent(for: actionLog)
+    /// 複数のActionLogに対して効率的にセキュアコンテンツを取得（並列処理、バッチサイズ制限）
+    func getSecureContents(for actionLogs: [ActionLog]) async -> [ActionLog: String] {
+        let maxConcurrency = min(actionLogs.count, 10) // 最大10並列に制限
+        
+        return await withTaskGroup(of: (ActionLog, String).self, returning: [ActionLog: String].self) { group in
+            var results: [ActionLog: String] = [:]
+            var iterator = actionLogs.makeIterator()
+            var activeTasks = 0
+            
+            // 初期タスクを追加
+            while activeTasks < maxConcurrency, let actionLog = iterator.next() {
+                group.addTask {
+                    return (actionLog, self.getSecureContent(for: actionLog))
+                }
+                activeTasks += 1
+            }
+            
+            // 結果を処理し、新しいタスクを追加
+            for await (actionLog, content) in group {
+                results[actionLog] = content
+                
+                // 次のタスクを追加
+                if let nextActionLog = iterator.next() {
+                    group.addTask {
+                        return (nextActionLog, self.getSecureContent(for: nextActionLog))
+                    }
+                }
+            }
+            
+            return results
         }
-        return results
     }
     
-    /// 複数のActionLogに対して効率的にセキュアAIフィードバックを取得
-    func getSecureAIFeedbacks(for actionLogs: [ActionLog]) -> [ActionLog: String?] {
-        var results: [ActionLog: String?] = [:]
-        for actionLog in actionLogs {
-            results[actionLog] = getSecureAIFeedback(for: actionLog)
+    /// 複数のActionLogに対して効率的にセキュアAIフィードバックを取得（並列処理、バッチサイズ制限）
+    func getSecureAIFeedbacks(for actionLogs: [ActionLog]) async -> [ActionLog: String?] {
+        let maxConcurrency = min(actionLogs.count, 10) // 最大10並列に制限
+        
+        return await withTaskGroup(of: (ActionLog, String?).self, returning: [ActionLog: String?].self) { group in
+            var results: [ActionLog: String?] = [:]
+            var iterator = actionLogs.makeIterator()
+            var activeTasks = 0
+            
+            // 初期タスクを追加
+            while activeTasks < maxConcurrency, let actionLog = iterator.next() {
+                group.addTask {
+                    return (actionLog, self.getSecureAIFeedback(for: actionLog))
+                }
+                activeTasks += 1
+            }
+            
+            // 結果を処理し、新しいタスクを追加
+            for await (actionLog, feedback) in group {
+                results[actionLog] = feedback
+                
+                // 次のタスクを追加
+                if let nextActionLog = iterator.next() {
+                    group.addTask {
+                        return (nextActionLog, self.getSecureAIFeedback(for: nextActionLog))
+                    }
+                }
+            }
+            
+            return results
         }
-        return results
     }
     
     /// 暗号化キーを取得（デバッグ用）
     func getEncryptionKey() -> Data {
         return encryptionKey
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// 統計情報更新のタイマーを設定
+    private func setupStatsUpdateTimer() {
+        statsUpdateTimer?.invalidate()
+        statsUpdateTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { _ in
+            self.needsStatsUpdate = true
+            self.updateStatistics()
+        }
+    }
+    
+    /// 全てのキャッシュをクリア
+    func clearCache() {
+        decryptionCache.removeAll()
+        aiFeedbackCache.removeAll()
+        statsCache = nil
+    }
+    
+    /// 統計情報キャッシュを無効化
+    func invalidateStatsCache() {
+        statsCache = nil
     }
     
     // MARK: - Feedback History Management
@@ -585,5 +714,11 @@ enum ActionLogError: LocalizedError {
         case .notFound:
             return "指定された行動ログが見つかりません"
         }
+    }
+    
+    deinit {
+        // タイマーを無効化してメモリリークを防止
+        statsUpdateTimer?.invalidate()
+        statsUpdateTimer = nil
     }
 } 

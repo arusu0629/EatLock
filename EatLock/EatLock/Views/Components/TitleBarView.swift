@@ -20,13 +20,17 @@ struct TitleBarView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 24, height: 24)
                     .foregroundColor(.green)
+                    .accessibilityHidden(true)
                 
                 Text("EatLock")
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
+                    .dynamicTypeSize(.large ... .accessibility3)
             }
+            .accessibilityElement(children: .combine)
             .accessibilityLabel("EatLock アプリ")
+            .accessibilityHint("暴飲暴食抑制サポートアプリ")
             
             Spacer()
             
@@ -35,6 +39,7 @@ struct TitleBarView: View {
                 Text(formatDate(currentDate))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                    .dynamicTypeSize(.large ... .accessibility3)
                     .accessibilityLabel("今日の日付: \(formatDate(currentDate))")
                 
                 // AIステータスインジケーター
@@ -42,15 +47,20 @@ struct TitleBarView: View {
                     Text("AI")
                         .font(.caption2)
                         .foregroundColor(.secondary)
+                        .accessibilityHidden(true)
                     
                     AIStatusIndicator()
                 }
+                .accessibilityElement(children: .combine)
                 .accessibilityLabel("AI機能の状態")
+                .accessibilityHint("AI機能が利用可能かどうかを示しています")
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("アプリタイトルバー")
         .onReceive(timer) { _ in
             currentDate = Date()
         }

@@ -11,74 +11,81 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ActionLog.timestamp, order: .reverse) private var actionLogs: [ActionLog]
-    @State private var repository: ActionLogRepository
-    @State private var newLogContent = ""
-    @State private var selectedLogType: LogType = .other
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
-    @State private var isRepositoryInitialized = false
-    @State private var showToast = false
-    @State private var toastMessage = ""
-    @State private var toastType: ToastType = .info
-    @State private var showFeedback = false
-    @State private var currentFeedback: AIFeedback?
+    @StateObject private var viewModel = ContentViewModel()
     private let router = NavigationRouter.shared
     
-    init() {
-        // 仮の初期化（実際のmodelContextは後でsetupで設定）
-        do {
-            let container = try ModelContainer(for: ActionLog.self)
-            let context = ModelContext(container)
-            _repository = State(initialValue: ActionLogRepository(modelContext: context))
-        } catch {
-            // 初期化に失敗した場合は仮のコンテキストを作成
-            let container = try! ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-            let context = ModelContext(container)
-            _repository = State(initialValue: ActionLogRepository(modelContext: context))
-        }
-    }
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // カスタムタイトルバー
-                TitleBarView()
-                    .background(Color(.systemBackground))
-                    .shadow(radius: 1)
-                    .zIndex(1)
-                
-                // メインコンテンツ
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // 統計カード
-                        StatsCardView(stats: repository.currentStats)
-                        
-                        // 行動ログ一覧
-                        LogListView(
-                            actionLogs: actionLogs,
-                            repository: repository,
-                            onDelete: deleteActionLogs
+            ZStack {
+                VStack(spacing: 0) {
+                    // カスタムタイトルバー
+                    TitleBarView()
+                        .background(Color(.systemBackground))
+                        .shadow(radius: 1)
+                        .zIndex(1)
+                    
+                    // メインコンテンツ
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            // スクロール位置監視用のリーダー
+                            ScrollOffsetReader()
+                            
+                            // 統計カード
+                            StatsCardView(stats: viewModel.repository?.currentStats)
+                            
+                            // 行動ログ一覧
+                            if let repository = viewModel.repository {
+                                LogListView(
+                                    actionLogs: actionLogs,
+                                    repository: repository,
+                                    onDelete: deleteActionLogs
+                                )
+                            }
+                            
+                            // 下部の余白（入力欄の分）
+                            Color.clear
+                                .frame(height: 140)
+                        }
+                        .padding(.horizontal)
+                    }
+                    .coordinateSpace(name: "scroll")
+                    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                        viewModel.updateScrollOffset(value)
+                    }
+                    
+                    // 下部固定入力欄
+                    VStack(spacing: 0) {
+                        LogInputView(
+                            newLogContent: $viewModel.newLogContent,
+                            selectedLogType: $viewModel.selectedLogType,
+                            onSubmit: addActionLog
                         )
                         
-                        // 下部の余白（入力欄の分）
-                        Color.clear
-                            .frame(height: 140)
+                        // 広告バナー（Safe Area下端に固定、キーボード対応）
+                        AdaptiveBannerAdView()
                     }
-                    .padding(.horizontal)
+                    .background(Color(.systemBackground))
                 }
                 
-                // 下部固定入力欄
-                VStack(spacing: 0) {
-                    LogInputView(
-                        newLogContent: $newLogContent,
-                        selectedLogType: $selectedLogType,
-                        onSubmit: addActionLog
-                    )
+                // フローティングボタン
+                VStack {
+                    Spacer()
                     
-                    // 広告バナー（Safe Area下端に固定、キーボード対応）
-                    AdaptiveBannerAdView()
+                    HStack {
+                        Spacer()
+                        
+                        FloatingAddButton(
+                            onTap: {
+                                focusTextInput()
+                            },
+                            isInputFocused: $viewModel.isInputFocused,
+                            scrollOffset: $viewModel.scrollOffset
+                        )
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 120) // 入力欄の上に配置
+                    }
                 }
-                .background(Color(.systemBackground))
             }
         }
         .navigationBarHidden(true)
@@ -88,23 +95,26 @@ struct ContentView: View {
             EmptyView()
         }
         .onAppear {
-            setupRepository()
-            checkTutorialNeeded()
+            viewModel.setupRepository(modelContext: modelContext)
+            viewModel.setupKeyboardObservers()
         }
-        .alert("エラー", isPresented: $showingAlert) {
+        .onDisappear {
+            viewModel.removeKeyboardObservers()
+        }
+        .alert("エラー", isPresented: $viewModel.showingAlert) {
             Button("OK") { }
         } message: {
-            Text(alertMessage)
+            Text(viewModel.alertMessage)
         }
-        .disabled(!isRepositoryInitialized)
+        .disabled(!viewModel.isRepositoryInitialized)
         .overlay(
             // Toast表示用のオーバーレイ
             ZStack {
-                if showToast {
+                if viewModel.showToast {
                     ToastView(
-                        message: toastMessage,
-                        type: toastType,
-                        isPresented: $showToast
+                        message: viewModel.toastMessage,
+                        type: viewModel.toastType,
+                        isPresented: $viewModel.showToast
                     )
                 }
             }
@@ -113,131 +123,39 @@ struct ContentView: View {
         .overlay(
             // フィードバック表示用のオーバーレイ
             ZStack {
-                if showFeedback, let feedback = currentFeedback {
+                if viewModel.showFeedback, let feedback = viewModel.currentFeedback {
                     FeedbackView(
                         feedback: feedback,
-                        isPresented: $showFeedback
+                        isPresented: $viewModel.showFeedback
                     )
                 }
             }
-            .allowsHitTesting(showFeedback)
+            .allowsHitTesting(viewModel.showFeedback)
         )
     }
     
-    private func setupRepository() {
-        repository = ActionLogRepository(modelContext: modelContext)
-        isRepositoryInitialized = true
-    }
     
     private func addActionLog() {
-        let content = newLogContent.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
-        
-        // 文字数チェック
-        guard content.count <= 500 else {
-            showToast(message: "文字数が上限（500文字）を超えています", type: .error)
-            return
-        }
-        
-        guard isRepositoryInitialized else {
-            showToast(message: "データベースの初期化に失敗しました。アプリを再起動してください。", type: .error)
-            return
-        }
-        
-        // AIフィードバック付きでログを作成
-        Task { @MainActor in
-            do {
-                let createdLog = try await repository.createActionLogWithAIFeedback(content: content, logType: selectedLogType)
-                
-                // UI更新（すでにMainActorで実行されている）
-                newLogContent = ""
-                selectedLogType = .other
-                
-                // 入力成功時のハプティックフィードバック
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.impactOccurred()
-                
-                // AIフィードバックが生成されていれば表示
-                if let aiFeedback = repository.getSecureAIFeedback(for: createdLog) {
-                    
-                    // AIFeedbackオブジェクトを作成（preventedCaloriesがnilの場合は0を使用）
-                    let feedback = AIFeedback(
-                        message: aiFeedback,
-                        preventedCalories: createdLog.preventedCalories ?? 0,
-                        type: determineFeedbackType(for: createdLog.logType),
-                        generatedAt: createdLog.updatedAt
-                    )
-                    
-                    // 少し遅延してフィードバックを表示
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self.currentFeedback = feedback
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            self.showFeedback = true
-                        }
-                    }
-                } else {
-                    // AIフィードバックが生成されていない場合は通常のToast
-                    showToast(message: "行動ログを保存しました", type: .success)
-                }
-                
-            } catch {
-                // エラー時のToast表示（すでにMainActorで実行されている）
-                showToast(message: error.localizedDescription, type: .error)
-            }
+        Task {
+            await viewModel.addActionLog()
         }
     }
     
     private func deleteActionLogs(offsets: IndexSet) {
-        guard isRepositoryInitialized else {
-            showToast(message: "データベースの初期化に失敗しました。アプリを再起動してください。", type: .error)
-            return
+        let logsToDelete = offsets.compactMap { index in
+            guard index < actionLogs.count else { return nil }
+            return actionLogs[index]
         }
-        
-        do {
-            let logsToDelete = offsets.map { actionLogs[$0] }
-            try repository.deleteActionLogs(logsToDelete)
-            showToast(message: "行動ログを削除しました", type: .success)
-        } catch {
-            showToast(message: error.localizedDescription, type: .error)
-        }
+        viewModel.deleteActionLogs(logsToDelete)
     }
     
-    private func calculateStats() -> ActionLogStats? {
-        // 現在は repository.currentStats を使用するため、このメソッドは不要
-        // 後方互換性のために残している
-        return repository.currentStats
+    
+
+    
+    private func focusTextInput() {
+        viewModel.focusTextInput()
     }
     
-    private func showToast(message: String, type: ToastType) {
-        toastMessage = message
-        toastType = type
-        withAnimation {
-            showToast = true
-        }
-    }
-    
-    private func determineFeedbackType(for logType: LogType) -> AIFeedback.FeedbackType {
-        switch logType {
-        case .success:
-            return .achievement
-        case .failure:
-            return .support
-        case .struggle:
-            return .encouragement
-        case .other:
-            return .support
-        }
-    }
-    
-    private func checkTutorialNeeded() {
-        let hasSeenTutorial = UserDefaults.standard.bool(forKey: "HasSeenTutorial")
-        if !hasSeenTutorial {
-            // 少し遅延させてから表示（アプリの初期化完了後）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                router.presentSheet(.tutorial)
-            }
-        }
-    }
 }
 
 #Preview {

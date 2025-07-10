@@ -108,9 +108,14 @@ class DataSecurityManager {
         
         if status == errSecSuccess {
             return result as? Data
+        } else if status == errSecItemNotFound {
+            // アイテムが見つからない場合は正常な状態
+            return nil
+        } else {
+            // その他のエラーは警告として記録
+            print("警告: Keychainからの読み込みに失敗しました。ステータス: \(status)")
+            return nil
         }
-        
-        return nil
     }
     
     /// Keychainからデータを削除
@@ -175,8 +180,9 @@ class DataSecurityManager {
             return newKey
         } else {
             // Keychainへの保存に失敗した場合の緊急フォールバック
-            print("警告: Keychainへの保存に失敗しました。一時的なキーを使用します。")
-            // 一時的なキーはキャッシュしない（次回取得時に再試行）
+            print("警告: Keychainへの保存に失敗しました。セキュリティが低下する可能性があります。")
+            // 一時的なキーもキャッシュして整合性を保つ
+            cachedEncryptionKey = newKey
             return newKey
         }
     }
@@ -343,6 +349,22 @@ class DataSecurityManager {
 
 // MARK: - Privacy Settings Codable Extension
 extension DataSecurityManager.PrivacySettings: Codable {}
+
+// MARK: - Bool値の暗号化保存/取得ラッパー
+extension DataSecurityManager {
+    /// Bool値を暗号化してUserDefaultsに保存
+    func saveEncryptedBool(_ value: Bool, forKey key: String) throws {
+        let encrypted = try encryptString(value.description, using: getDeviceEncryptionKey())
+        UserDefaults.standard.set(encrypted, forKey: key)
+    }
+    /// 暗号化されたBool値をUserDefaultsから復号して取得
+    func loadEncryptedBool(forKey key: String, defaultValue: Bool = false) -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let decrypted = try? decryptData(data, using: getDeviceEncryptionKey())
+        else { return defaultValue }
+        return Bool(decrypted) ?? defaultValue
+    }
+}
 
 // MARK: - Error Types
 enum BiometricAuthError: LocalizedError {

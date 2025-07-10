@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rg:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(swift:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)",
+      "mcp__github__get_pull_request",
+      "mcp__github__get_pull_request_comments",
+      "mcp__github__create_issue",
+      "mcp__github__get_pull_request_reviews"
+    ],
+    "deny": []
+  }
+}
