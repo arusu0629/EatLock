@@ -15,14 +15,16 @@ class TestHelpers {
     ///   - duration: 待機時間（秒）
     ///   - timeout: タイムアウト時間（秒）
     ///   - description: 待機の説明
-    static func waitAsync(duration: TimeInterval, timeout: TimeInterval = 2.0, description: String = "Async wait") {
+    static func waitAsync(duration: TimeInterval, timeout: TimeInterval = 2.0, description: String = "Async wait", file: StaticString = #file, line: UInt = #line) {
         let expectation = XCTestExpectation(description: description)
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
             expectation.fulfill()
         }
         
-        let testCase = XCTestCase()
-        testCase.wait(for: [expectation], timeout: max(timeout, duration + 1.0))
+        let result = XCTWaiter.wait(for: [expectation], timeout: max(timeout, duration + 1.0))
+        if result != .completed {
+            XCTFail("Async wait timed out", file: file, line: line)
+        }
     }
     
     /// UI要素が存在することを確認するヘルパーメソッド

@@ -5,7 +5,9 @@
       "Bash(xcodebuild:*)",
       "Bash(swift:*)",
       "Bash(find:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "mcp__github__get_pull_request",
+      "mcp__github__get_pull_request_comments"
     ],
     "deny": []
   }

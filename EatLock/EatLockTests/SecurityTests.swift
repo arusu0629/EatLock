@@ -200,6 +200,7 @@ struct SecurityTests {
         
         // 複数のタスクで同時にログを作成
         await withTaskGroup(of: Void.self) { group in
+            var errors: [Error] = []
             for i in 0..<10 {
                 group.addTask {
                     do {
@@ -208,10 +209,14 @@ struct SecurityTests {
                             logType: .success
                         )
                     } catch {
-                        // エラーが発生した場合もテストを継続
-                        print("同時アクセスエラー: \(error)")
+                        errors.append(error)
                     }
                 }
+            }
+            
+            // エラーが発生した場合は詳細を記録
+            if !errors.isEmpty {
+                #expect(Bool(false), "同時アクセス中にエラーが発生: \(errors)")
             }
         }
         

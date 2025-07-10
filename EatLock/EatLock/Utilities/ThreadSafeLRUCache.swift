@@ -17,6 +17,7 @@ public final class ThreadSafeLRUCache<Key: Hashable, Value> {
     /// LRUキャッシュを初期化
     /// - Parameter maxSize: 最大サイズ
     public init(maxSize: Int) {
+        precondition(maxSize > 0, "maxSize must be greater than 0")
         self.maxSize = maxSize
     }
     

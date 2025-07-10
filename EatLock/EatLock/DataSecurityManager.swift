@@ -358,11 +358,11 @@ extension DataSecurityManager {
         UserDefaults.standard.set(encrypted, forKey: key)
     }
     /// 暗号化されたBool値をUserDefaultsから復号して取得
-    func loadEncryptedBool(forKey key: String) -> Bool {
+    func loadEncryptedBool(forKey key: String, defaultValue: Bool = false) -> Bool {
         guard let data = UserDefaults.standard.data(forKey: key),
               let decrypted = try? decryptData(data, using: getDeviceEncryptionKey())
-        else { return false }
-        return Bool(decrypted) ?? false
+        else { return defaultValue }
+        return Bool(decrypted) ?? defaultValue
     }
 }
 

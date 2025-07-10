@@ -30,8 +30,13 @@ class ContentViewModel: ObservableObject {
     private let scrollOffsetDebouncer = Debouncer(delay: 0.016) // ~60fps
     
     func setupRepository(modelContext: ModelContext) {
-        repository = ActionLogRepository(modelContext: modelContext)
-        isRepositoryInitialized = true
+        do {
+            repository = ActionLogRepository(modelContext: modelContext)
+            isRepositoryInitialized = true
+        } catch {
+            showToast(message: "データベースの初期化に失敗しました: \(error.localizedDescription)", type: .error)
+            isRepositoryInitialized = false
+        }
     }
     
     func updateScrollOffset(_ value: CGFloat) {
