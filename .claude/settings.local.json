@@ -4,7 +4,8 @@
       "Bash(rg:*)",
       "Bash(xcodebuild:*)",
       "Bash(swift:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }

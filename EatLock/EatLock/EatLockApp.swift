@@ -10,16 +10,18 @@ import SwiftData
 
 @main
 struct EatLockApp: App {
-    private var _sharedModelContainer: ModelContainer?
+    @MainActor
+    private static var _sharedModelContainer: ModelContainer?
     
+    @MainActor
     var sharedModelContainer: ModelContainer {
-        if let container = _sharedModelContainer {
+        if let container = Self._sharedModelContainer {
             return container
         }
         
         do {
             let container = try DataSecurityManager.createSecureModelContainer()
-            _sharedModelContainer = container
+            Self._sharedModelContainer = container
             return container
         } catch {
             fatalError("Could not create ModelContainer: \(error)")

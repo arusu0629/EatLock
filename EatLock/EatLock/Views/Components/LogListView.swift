@@ -15,15 +15,7 @@ struct LogListView: View {
     
     // MARK: - Search and Filter States
     
-    @State private var searchText = "" {
-        didSet {
-            searchDebouncer.debounce {
-                Task { @MainActor in
-                    triggerFilterUpdate()
-                }
-            }
-        }
-    }
+    @State private var searchText = ""
     @State private var selectedLogType: LogType? = nil
     @State private var selectedDateRange: DateRange = .all
     @State private var isFilterExpanded = false
@@ -305,6 +297,13 @@ struct LogListView: View {
     }
     .onChange(of: selectedDateRange) { _ in
         triggerFilterUpdate()
+    }
+    .onChange(of: searchText) { _ in
+        searchDebouncer.debounce {
+            Task { @MainActor in
+                triggerFilterUpdate()
+            }
+        }
     }
     .onChange(of: actionLogs) { _ in
         // データが更新されたらキャッシュをクリア

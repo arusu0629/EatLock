@@ -687,4 +687,10 @@ enum ActionLogError: LocalizedError {
             return "指定された行動ログが見つかりません"
         }
     }
+    
+    deinit {
+        // タイマーを無効化してメモリリークを防止
+        statsUpdateTimer?.invalidate()
+        statsUpdateTimer = nil
+    }
 } 
