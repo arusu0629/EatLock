@@ -32,7 +32,11 @@ struct ContentView: View {
                             ScrollOffsetReader()
                             
                             // 統計カード
-                            StatsCardView(stats: viewModel.repository?.currentStats)
+                            if let stats = viewModel.repository?.currentStats {
+                                StatsCardView(stats: stats)
+                            } else {
+                                StatsCardView(stats: ActionLogStats(totalLogs: 0, successLogs: 0, totalPreventedCalories: 0, consecutiveDays: 0))
+                            }
                             
                             // 行動ログ一覧
                             if let repository = viewModel.repository {
@@ -142,7 +146,7 @@ struct ContentView: View {
     }
     
     private func deleteActionLogs(offsets: IndexSet) {
-        let logsToDelete = offsets.compactMap { index in
+        let logsToDelete: [ActionLog] = offsets.compactMap { index in
             guard index < actionLogs.count else { return nil }
             return actionLogs[index]
         }

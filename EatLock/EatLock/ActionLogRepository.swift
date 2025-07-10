@@ -668,7 +668,7 @@ class ActionLogRepository {
     /// 防いだカロリーが記録されているフィードバック履歴を取得
     func fetchFeedbackHistoryWithCalories() throws -> [ActionLog] {
         let predicate = #Predicate<ActionLog> { log in
-            (log.aiFeedback != nil || log.encryptedAIFeedback != nil) && log.preventedCalories != nil && log.preventedCalories > 0
+            log.preventedCalories != nil && log.preventedCalories! > 0
         }
         
         let descriptor = FetchDescriptor<ActionLog>(
@@ -681,6 +681,12 @@ class ActionLogRepository {
         } catch {
             throw ActionLogError.fetchFailed(error)
         }
+    }
+    
+    deinit {
+        // タイマーを無効化してメモリリークを防止
+        statsUpdateTimer?.invalidate()
+        statsUpdateTimer = nil
     }
 }
 
@@ -714,11 +720,5 @@ enum ActionLogError: LocalizedError {
         case .notFound:
             return "指定された行動ログが見つかりません"
         }
-    }
-    
-    deinit {
-        // タイマーを無効化してメモリリークを防止
-        statsUpdateTimer?.invalidate()
-        statsUpdateTimer = nil
     }
 } 

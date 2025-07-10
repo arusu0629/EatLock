@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct LogListView: View {
     let actionLogs: [ActionLog]
@@ -304,30 +305,30 @@ struct LogListView: View {
         }
         .listStyle(PlainListStyle())
         .accessibilityLabel("行動ログ一覧")
-    }
-    .onAppear {
-        // 初回表示時にフィルタを初期化
-        if cachedFilteredLogs.isEmpty {
-            triggerFilterUpdate()
-        }
-    }
-    .onChange(of: selectedLogType) { _ in
-        triggerFilterUpdate()
-    }
-    .onChange(of: selectedDateRange) { _ in
-        triggerFilterUpdate()
-    }
-    .onChange(of: searchText) { _ in
-        searchDebouncer.debounce {
-            Task { @MainActor in
+        .onAppear {
+            // 初回表示時にフィルタを初期化
+            if cachedFilteredLogs.isEmpty {
                 triggerFilterUpdate()
             }
         }
-    }
-    .onChange(of: actionLogs) { _ in
-        // データが更新されたらキャッシュをクリア
-        cachedFilteredLogs = []
-        triggerFilterUpdate()
+        .onChange(of: selectedLogType) { _ in
+            triggerFilterUpdate()
+        }
+        .onChange(of: selectedDateRange) { _ in
+            triggerFilterUpdate()
+        }
+        .onChange(of: searchText) { _ in
+            searchDebouncer.debounce {
+                Task { @MainActor in
+                    triggerFilterUpdate()
+                }
+            }
+        }
+        .onChange(of: actionLogs) { _ in
+            // データが更新されたらキャッシュをクリア
+            cachedFilteredLogs = []
+            triggerFilterUpdate()
+        }
     }
     
     // MARK: - Accessibility Helper
@@ -519,14 +520,6 @@ struct ActionLogRow: View {
     }
 }
 
-// MARK: - DateFormatter Extension
-extension DateFormatter {
-    static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-}
 
 #Preview {
     let sampleLogs = [

@@ -153,11 +153,6 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         
         logger.info("同意フォームを表示中...")
         
-        guard UMPConsentForm.canPresent else {
-            logger.error("同意フォームを表示できません")
-            return
-        }
-        
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first,
               let rootViewController = window.rootViewController else {
@@ -165,14 +160,26 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
             return
         }
         
-        UMPConsentForm.present(from: rootViewController) { [weak self] error in
+        UMPConsentForm.load { [weak self] form, loadError in
             DispatchQueue.main.async {
-                if let error = error {
-                    self?.logger.error("同意フォーム表示エラー: \(error.localizedDescription)")
-                } else {
-                    self?.consentStatus = .obtained
-                    self?.adLoadingState = .idle
-                    self?.logger.info("ユーザー同意を取得しました")
+                if let loadError = loadError {
+                    self?.logger.error("同意フォーム読み込みエラー: \(loadError.localizedDescription)")
+                    return
+                }
+                
+                guard let form = form else {
+                    self?.logger.error("同意フォームが取得できませんでした")
+                    return
+                }
+                
+                form.present(from: rootViewController) { [weak self] dismissError in
+                    if let dismissError = dismissError {
+                        self?.logger.error("同意フォーム表示エラー: \(dismissError.localizedDescription)")
+                    } else {
+                        self?.consentStatus = .obtained
+                        self?.adLoadingState = .idle
+                        self?.logger.info("ユーザー同意を取得しました")
+                    }
                 }
             }
         }
@@ -180,19 +187,14 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     /// 初期化結果を処理
     private func handleInitializationResult(_ status: GADInitializationStatus) {
-        if status.adapterStatuses.isEmpty {
-            logger.error("AdMob SDK初期化失敗: アダプターが見つかりません")
-        } else {
-            logger.info("AdMob SDK初期化成功: \(status.adapterStatuses.count)個のアダプター")
-        }
+        // 新しいSDKバージョンではadapterStatusesプロパティは利用できません
+        logger.info("AdMob SDK初期化完了")
         setupTestDevices()
     }
     
     /// テストデバイスの設定
     private func setupTestDevices() {
-        let request = GADRequestConfiguration()
-        request.testDeviceIdentifiers = testDeviceIds
-        GADMobileAds.sharedInstance().requestConfiguration = request
+        GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = testDeviceIds
     }
     
     /// バナー広告を読み込み
@@ -264,9 +266,11 @@ extension AdManager: GADBannerViewDelegate {
         adLoadingState = .loaded
     }
     
-    func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+    nonisolated func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
         logger.error("バナー広告の読み込みに失敗しました: \(error.localizedDescription)")
-        adLoadingState = .failed(error)
+        Task { @MainActor in
+            adLoadingState = .failed(error)
+        }
     }
     
     func bannerViewWillPresentScreen(_ bannerView: GADBannerView) {

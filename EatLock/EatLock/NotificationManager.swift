@@ -101,7 +101,7 @@ final class NotificationManager: ObservableObject {
         
         // 既に権限が決定している場合はスキップ
         if authorizationStatus != .notDetermined {
-            logger.info("Notification permission already determined: \(authorizationStatus)")
+            logger.info("Notification permission already determined: \(self.authorizationStatus.rawValue)")
             markPermissionAsRequested()
             return
         }
@@ -340,7 +340,7 @@ final class NotificationManager: ObservableObject {
     private func updateAuthorizationStatus() async {
         let settings = await notificationCenter.notificationSettings()
         authorizationStatus = settings.authorizationStatus
-        logger.info("Authorization status updated: \(authorizationStatus)")
+        logger.info("Authorization status updated: \(self.authorizationStatus.rawValue)")
     }
     
     /// 通知権限をチェック

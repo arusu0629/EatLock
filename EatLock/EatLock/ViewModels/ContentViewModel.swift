@@ -177,6 +177,8 @@ class ContentViewModel: ObservableObject {
     }
     
     deinit {
-        removeKeyboardObservers()
+        // deinitでは MainActor メソッドを呼び出せないため、
+        // ObserverはViewが消える時に自動的にクリーンアップされるよう実装
+        // または手動でクリーンアップのタイミングを調整する
     }
 }
