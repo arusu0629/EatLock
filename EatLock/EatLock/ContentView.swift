@@ -35,9 +35,17 @@ struct ContentView: View {
             _repository = State(initialValue: ActionLogRepository(modelContext: context))
         } catch {
             // 初期化に失敗した場合は仮のコンテキストを作成
-            let container = try! ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-            let context = ModelContext(container)
-            _repository = State(initialValue: ActionLogRepository(modelContext: context))
+            do {
+                let container = try ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+                let context = ModelContext(container)
+                _repository = State(initialValue: ActionLogRepository(modelContext: context))
+            } catch {
+                // 最終的なフォールバック：エラーログを出力して基本的なリポジトリを作成
+                print("Fatal error: Could not create ModelContainer: \(error)")
+                let container = try! ModelContainer(for: ActionLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+                let context = ModelContext(container)
+                _repository = State(initialValue: ActionLogRepository(modelContext: context))
+            }
         }
     }
 
@@ -203,7 +211,9 @@ struct ContentView: View {
                     )
                     
                     // 少し遅延してフィードバックを表示
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(500))
+                        guard !Task.isCancelled else { return }
                         self.currentFeedback = feedback
                         withAnimation(.easeInOut(duration: 0.3)) {
                             self.showFeedback = true
@@ -228,7 +238,16 @@ struct ContentView: View {
         }
         
         do {
-            let logsToDelete = offsets.map { actionLogs[$0] }
+            let logsToDelete = offsets.compactMap { index in
+                guard index < actionLogs.count else { return nil }
+                return actionLogs[index]
+            }
+            
+            guard !logsToDelete.isEmpty else {
+                showToast(message: "削除対象のログが見つかりません", type: .error)
+                return
+            }
+            
             try repository.deleteActionLogs(logsToDelete)
             showToast(message: "行動ログを削除しました", type: .success)
         } catch {
