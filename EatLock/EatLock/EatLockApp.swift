@@ -10,14 +10,23 @@ import SwiftData
 
 @main
 struct EatLockApp: App {
-    var sharedModelContainer: ModelContainer = {
-        // セキュアなModelContainerを使用
+    @MainActor
+    private static var _sharedModelContainer: ModelContainer?
+    
+    @MainActor
+    var sharedModelContainer: ModelContainer {
+        if let container = Self._sharedModelContainer {
+            return container
+        }
+        
         do {
-            return try DataSecurityManager.createSecureModelContainer()
+            let container = try DataSecurityManager.createSecureModelContainer()
+            Self._sharedModelContainer = container
+            return container
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -33,17 +42,26 @@ struct EatLockApp: App {
                     }
                 }
                 .task {
-                    // アプリ起動時にAIを初期化
-                    await AIManager.shared.initialize()
-                    
-                    // アプリ起動時に通知マネージャーを初期化
-                    await NotificationManager.shared.initialize()
-                    
-                    // 通知権限を初回のみリクエスト
-                    await NotificationManager.shared.requestPermissionIfNeeded()
-                    
-                    // 広告マネージャーを初期化
-                    AdManager.shared.initialize()
+                    // アプリ起動時の重要な初期化を並列実行
+                    await withTaskGroup(of: Void.self) { group in
+                        // 最重要: AIマネージャーの初期化
+                        group.addTask {
+                            await AIManager.shared.initialize()
+                        }
+                        
+                        // 重要: 通知マネージャーの初期化
+                        group.addTask {
+                            await NotificationManager.shared.initialize()
+                            await NotificationManager.shared.requestPermissionIfNeeded()
+                        }
+                        
+                        // 低優先度: 広告マネージャーは遅延初期化
+                        group.addTask {
+                            // UI表示後に遅延実行
+                            try? await Task.sleep(for: .milliseconds(500))
+                            AdManager.shared.initialize()
+                        }
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)

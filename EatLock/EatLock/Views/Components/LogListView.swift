@@ -19,22 +19,83 @@ struct LogListView: View {
     @State private var selectedLogType: LogType? = nil
     @State private var selectedDateRange: DateRange = .all
     @State private var isFilterExpanded = false
+    @State private var cachedFilteredLogs: [ActionLog] = []
+    @State private var isFilteringInProgress = false
+    
+    private let searchDebouncer = Debouncer(delay: 0.3)
     
     // MARK: - Computed Properties
     
-    // 検索・フィルタリング後のログ
+    // 検索・フィルタリング後のログ（キャッシュ対応）
     private var filteredLogs: [ActionLog] {
+        if isFilteringInProgress {
+            return cachedFilteredLogs
+        }
+        return cachedFilteredLogs.isEmpty ? actionLogs : cachedFilteredLogs
+    }
+    
+    private func triggerFilterUpdate() {
+        guard !isFilteringInProgress else { return }
+        
+        isFilteringInProgress = true
+        
+        Task.detached(priority: .userInitiated) {
+            let filtered = await performFiltering()
+            
+            await MainActor.run {
+                self.cachedFilteredLogs = filtered
+                self.isFilteringInProgress = false
+            }
+        }
+    }
+    
+    private func performFiltering() async -> [ActionLog] {
         var filtered = actionLogs
         
-        // テキスト検索
+        // テキスト検索（並列処理、バッチサイズ制限）
         if !searchText.isEmpty {
-            filtered = filtered.filter { log in
-                let content = repository.getSecureContent(for: log)
-                let feedback = repository.getSecureAIFeedback(for: log) ?? ""
-                return content.localizedCaseInsensitiveContains(searchText) ||
-                       feedback.localizedCaseInsensitiveContains(searchText) ||
-                       log.emotionTags.joined(separator: " ").localizedCaseInsensitiveContains(searchText)
+            let maxConcurrency = min(filtered.count, 8) // 最大8並列に制限
+            
+            let searchResults = await withTaskGroup(of: (ActionLog, Bool).self, returning: [ActionLog].self) { group in
+                var results: [ActionLog] = []
+                var iterator = filtered.makeIterator()
+                var activeTasks = 0
+                
+                // 初期タスクを追加
+                while activeTasks < maxConcurrency, let log = iterator.next() {
+                    group.addTask {
+                        let content = repository.getSecureContent(for: log)
+                        let feedback = repository.getSecureAIFeedback(for: log) ?? ""
+                        let matches = content.localizedCaseInsensitiveContains(searchText) ||
+                                     feedback.localizedCaseInsensitiveContains(searchText) ||
+                                     log.emotionTags.joined(separator: " ").localizedCaseInsensitiveContains(searchText)
+                        return (log, matches)
+                    }
+                    activeTasks += 1
+                }
+                
+                // 結果を処理し、新しいタスクを追加
+                for await (log, matches) in group {
+                    if matches {
+                        results.append(log)
+                    }
+                    
+                    // 次のタスクを追加
+                    if let nextLog = iterator.next() {
+                        group.addTask {
+                            let content = repository.getSecureContent(for: nextLog)
+                            let feedback = repository.getSecureAIFeedback(for: nextLog) ?? ""
+                            let matches = content.localizedCaseInsensitiveContains(searchText) ||
+                                         feedback.localizedCaseInsensitiveContains(searchText) ||
+                                         nextLog.emotionTags.joined(separator: " ").localizedCaseInsensitiveContains(searchText)
+                            return (nextLog, matches)
+                        }
+                    }
+                }
+                
+                return results
             }
+            filtered = searchResults
         }
         
         // ログタイプフィルタ
@@ -243,6 +304,30 @@ struct LogListView: View {
         }
         .listStyle(PlainListStyle())
         .accessibilityLabel("行動ログ一覧")
+    }
+    .onAppear {
+        // 初回表示時にフィルタを初期化
+        if cachedFilteredLogs.isEmpty {
+            triggerFilterUpdate()
+        }
+    }
+    .onChange(of: selectedLogType) { _ in
+        triggerFilterUpdate()
+    }
+    .onChange(of: selectedDateRange) { _ in
+        triggerFilterUpdate()
+    }
+    .onChange(of: searchText) { _ in
+        searchDebouncer.debounce {
+            Task { @MainActor in
+                triggerFilterUpdate()
+            }
+        }
+    }
+    .onChange(of: actionLogs) { _ in
+        // データが更新されたらキャッシュをクリア
+        cachedFilteredLogs = []
+        triggerFilterUpdate()
     }
     
     // MARK: - Accessibility Helper

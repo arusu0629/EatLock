@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rg:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(swift:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)"
+    ],
+    "deny": []
+  }
+}
