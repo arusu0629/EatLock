@@ -2,6 +2,20 @@
 
 このファイルは、このリポジトリでコードを操作する際のClaude Code (claude.ai/code) へのガイダンスを提供します。
 
+## 目次
+
+- [プロジェクト概要](#プロジェクト概要)
+- [ビルドとテストコマンド](#ビルドとテストコマンド)
+- [アーキテクチャ](#アーキテクチャ)
+  - [コアコンポーネント](#コアコンポーネント)
+  - [データフロー](#データフロー)
+  - [主要パターン](#主要パターン)
+- [重要なルール](#重要なルール)
+  - [GitHub操作](#github操作docs/ai_operation_rulesmdより)
+  - [セキュリティ考慮事項](#セキュリティ考慮事項)
+  - [テスト構造](#テスト構造)
+- [開発ノート](#開発ノート)
+
 ## プロジェクト概要
 
 EatLockは、SwiftUIとSwiftDataで構築されたiOSアプリで、ユーザーが食行動をログし、過食を防ぐためのAIフィードバックを提供します。データ暗号化、ローカルAI処理、広告統合、包括的な統計追跡機能を備えています。
@@ -10,9 +24,48 @@ EatLockは、SwiftUIとSwiftDataで構築されたiOSアプリで、ユーザー
 
 これはXcodeを使用するiOSプロジェクトです：
 
-- **ビルド**: Xcodeで`EatLock.xcodeproj`を開いてビルド（⌘+B）または`xcodebuild`を使用
-- **テスト実行**: XcodeのTest Navigatorを使用するか`xcodebuild test`を実行
-- **アプリ実行**: XcodeのRunボタン（⌘+R）またはiOSシミュレーターを使用
+### Xcodeでの操作
+- **ビルド**: Xcodeで`EatLock.xcodeproj`を開いてビルド（⌘+B）
+- **テスト実行**: XcodeのTest Navigator（⌘+6）を使用
+- **アプリ実行**: XcodeのRunボタン（⌘+R）またはiOSシミュレーター
+
+### コマンドライン操作
+
+#### ビルドコマンド
+```bash
+# プロジェクトのビルド
+xcodebuild \
+  -project EatLock.xcodeproj \
+  -scheme EatLock \
+  -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.4' \
+  clean build
+```
+
+#### テストコマンド
+```bash
+# 単体テストの実行
+xcodebuild \
+  -project EatLock.xcodeproj \
+  -scheme EatLock \
+  -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.4' \
+  test
+
+# UIテストの実行
+xcodebuild \
+  -project EatLock.xcodeproj \
+  -scheme EatLock \
+  -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.4' \
+  test -only-testing:EatLockUITests
+```
+
+#### 依存関係の管理
+```bash
+# Swift Package Manager依存関係の解決
+swift package resolve
+
+# 依存関係のアップデート
+swift package update
+```
 
 プロジェクトはiOS 17+が必要で、依存関係にSwift Package Managerを使用しています。
 
@@ -58,6 +111,17 @@ EatLockは、SwiftUIとSwiftDataで構築されたiOSアプリで、ユーザー
 - 暗号化キーはデバイス固有でDataSecurityManagerが管理
 - 暗号化されたコンテンツを平文でログ出力や露出させない
 - ActionLogRepositoryが暗号化/復号化を透過的に処理
+
+#### 暗号化キー管理方針
+- **キー生成**: デバイス固有のハードウェア識別子を使用してキーを生成
+- **キー保存**: Secure EnclaveまたはKeychainを使用して暗号化キーを安全に保存
+- **キーローテーション**: セキュリティリスクが検出された場合の自動キー更新機能
+- **キーアクセス**: 生体認証（Touch ID/Face ID）による暗号化キーアクセス制御
+
+#### データ保護レベル
+- プライベートデータ（行動ログ、AIフィードバック）: AES-256による暗号化
+- アプリ固有データ: KeychainのkSecAttrAccessibleWhenUnlockedThisDeviceOnly属性を使用
+- 暗号化キーの外部送信は一切禁止
 
 ### テスト構造
 
