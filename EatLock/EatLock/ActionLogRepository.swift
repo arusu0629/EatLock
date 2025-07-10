@@ -524,38 +524,66 @@ class ActionLogRepository {
         return contentText
     }
     
-    /// 複数のActionLogに対して効率的にセキュアコンテンツを取得（並列処理）
+    /// 複数のActionLogに対して効率的にセキュアコンテンツを取得（並列処理、バッチサイズ制限）
     func getSecureContents(for actionLogs: [ActionLog]) async -> [ActionLog: String] {
-        await withTaskGroup(of: (ActionLog, String).self) { group in
+        let maxConcurrency = min(actionLogs.count, 10) // 最大10並列に制限
+        
+        return await withTaskGroup(of: (ActionLog, String).self, returning: [ActionLog: String].self) { group in
             var results: [ActionLog: String] = [:]
+            var iterator = actionLogs.makeIterator()
+            var activeTasks = 0
             
-            for actionLog in actionLogs {
+            // 初期タスクを追加
+            while activeTasks < maxConcurrency, let actionLog = iterator.next() {
                 group.addTask {
                     return (actionLog, self.getSecureContent(for: actionLog))
                 }
+                activeTasks += 1
             }
             
+            // 結果を処理し、新しいタスクを追加
             for await (actionLog, content) in group {
                 results[actionLog] = content
+                
+                // 次のタスクを追加
+                if let nextActionLog = iterator.next() {
+                    group.addTask {
+                        return (nextActionLog, self.getSecureContent(for: nextActionLog))
+                    }
+                }
             }
             
             return results
         }
     }
     
-    /// 複数のActionLogに対して効率的にセキュアAIフィードバックを取得（並列処理）
+    /// 複数のActionLogに対して効率的にセキュアAIフィードバックを取得（並列処理、バッチサイズ制限）
     func getSecureAIFeedbacks(for actionLogs: [ActionLog]) async -> [ActionLog: String?] {
-        await withTaskGroup(of: (ActionLog, String?).self) { group in
+        let maxConcurrency = min(actionLogs.count, 10) // 最大10並列に制限
+        
+        return await withTaskGroup(of: (ActionLog, String?).self, returning: [ActionLog: String?].self) { group in
             var results: [ActionLog: String?] = [:]
+            var iterator = actionLogs.makeIterator()
+            var activeTasks = 0
             
-            for actionLog in actionLogs {
+            // 初期タスクを追加
+            while activeTasks < maxConcurrency, let actionLog = iterator.next() {
                 group.addTask {
                     return (actionLog, self.getSecureAIFeedback(for: actionLog))
                 }
+                activeTasks += 1
             }
             
+            // 結果を処理し、新しいタスクを追加
             for await (actionLog, feedback) in group {
                 results[actionLog] = feedback
+                
+                // 次のタスクを追加
+                if let nextActionLog = iterator.next() {
+                    group.addTask {
+                        return (nextActionLog, self.getSecureAIFeedback(for: nextActionLog))
+                    }
+                }
             }
             
             return results

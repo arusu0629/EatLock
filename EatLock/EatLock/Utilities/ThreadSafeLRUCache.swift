@@ -8,7 +8,7 @@
 import Foundation
 
 /// スレッドセーフなLRUキャッシュ実装
-final class ThreadSafeLRUCache<Key: Hashable, Value> {
+public final class ThreadSafeLRUCache<Key: Hashable, Value> {
     private let maxSize: Int
     private var cache: [Key: Value] = [:]
     private var accessOrder: [Key] = []
@@ -16,14 +16,14 @@ final class ThreadSafeLRUCache<Key: Hashable, Value> {
     
     /// LRUキャッシュを初期化
     /// - Parameter maxSize: 最大サイズ
-    init(maxSize: Int) {
+    public init(maxSize: Int) {
         self.maxSize = maxSize
     }
     
     /// 値を取得
     /// - Parameter key: キー
     /// - Returns: 値（存在しない場合はnil）
-    func getValue(for key: Key) -> Value? {
+    public func getValue(for key: Key) -> Value? {
         return queue.sync {
             guard let value = cache[key] else { return nil }
             
@@ -37,7 +37,7 @@ final class ThreadSafeLRUCache<Key: Hashable, Value> {
     /// - Parameters:
     ///   - value: 値
     ///   - key: キー
-    func setValue(_ value: Value, for key: Key) {
+    public func setValue(_ value: Value, for key: Key) {
         queue.async(flags: .barrier) {
             self.cache[key] = value
             self.updateAccessOrder(for: key)
@@ -46,7 +46,7 @@ final class ThreadSafeLRUCache<Key: Hashable, Value> {
     }
     
     /// キャッシュをクリア
-    func clear() {
+    public func clear() {
         queue.async(flags: .barrier) {
             self.cache.removeAll()
             self.accessOrder.removeAll()
@@ -54,7 +54,7 @@ final class ThreadSafeLRUCache<Key: Hashable, Value> {
     }
     
     /// 現在のサイズを取得
-    var count: Int {
+    public var count: Int {
         return queue.sync {
             cache.count
         }
@@ -63,8 +63,8 @@ final class ThreadSafeLRUCache<Key: Hashable, Value> {
     // MARK: - Private Methods
     
     private func updateAccessOrder(for key: Key) {
-        // 既存のキーを削除
-        if let index = accessOrder.firstIndex(of: key) {
+        // 既存のキーを削除（パフォーマンス最適化）
+        if let index = accessOrder.lastIndex(of: key) {
             accessOrder.remove(at: index)
         }
         // 最新のアクセスとして末尾に追加

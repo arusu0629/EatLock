@@ -52,12 +52,17 @@ struct LogListView: View {
     private func performFiltering() async -> [ActionLog] {
         var filtered = actionLogs
         
-        // テキスト検索（並列処理）
+        // テキスト検索（並列処理、バッチサイズ制限）
         if !searchText.isEmpty {
-            let searchResults = await withTaskGroup(of: (ActionLog, Bool).self) { group in
+            let maxConcurrency = min(filtered.count, 8) // 最大8並列に制限
+            
+            let searchResults = await withTaskGroup(of: (ActionLog, Bool).self, returning: [ActionLog].self) { group in
                 var results: [ActionLog] = []
+                var iterator = filtered.makeIterator()
+                var activeTasks = 0
                 
-                for log in filtered {
+                // 初期タスクを追加
+                while activeTasks < maxConcurrency, let log = iterator.next() {
                     group.addTask {
                         let content = repository.getSecureContent(for: log)
                         let feedback = repository.getSecureAIFeedback(for: log) ?? ""
@@ -66,11 +71,25 @@ struct LogListView: View {
                                      log.emotionTags.joined(separator: " ").localizedCaseInsensitiveContains(searchText)
                         return (log, matches)
                     }
+                    activeTasks += 1
                 }
                 
+                // 結果を処理し、新しいタスクを追加
                 for await (log, matches) in group {
                     if matches {
                         results.append(log)
+                    }
+                    
+                    // 次のタスクを追加
+                    if let nextLog = iterator.next() {
+                        group.addTask {
+                            let content = repository.getSecureContent(for: nextLog)
+                            let feedback = repository.getSecureAIFeedback(for: nextLog) ?? ""
+                            let matches = content.localizedCaseInsensitiveContains(searchText) ||
+                                         feedback.localizedCaseInsensitiveContains(searchText) ||
+                                         nextLog.emotionTags.joined(separator: " ").localizedCaseInsensitiveContains(searchText)
+                            return (nextLog, matches)
+                        }
                     }
                 }
                 
