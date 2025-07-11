@@ -47,7 +47,7 @@ final class AIEngine: ObservableObject {
         
         do {
             let result = try await withTimeout(timeoutDuration) {
-                await aiService.initialize()
+                await self.aiService.initialize()
             }
             
             switch result {
@@ -95,7 +95,7 @@ final class AIEngine: ObservableObject {
         
         do {
             let result = try await withTimeout(timeoutDuration) {
-                await aiService.generateFeedback(for: text)
+                await self.aiService.generateFeedback(for: text)
             }
             
             // パフォーマンス測定終了

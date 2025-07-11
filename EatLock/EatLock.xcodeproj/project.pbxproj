@@ -29,9 +29,22 @@
 		2F91380C2E0BB10E001B80B5 /* EatLockUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EatLockUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2F6A6B152E1FD9D4001AA2FC /* Exceptions for "EatLock" folder in "EatLock" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2F9137EF2E0BB10A001B80B5 /* EatLock */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2F9137F22E0BB10A001B80B5 /* EatLock */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2F6A6B152E1FD9D4001AA2FC /* Exceptions for "EatLock" folder in "EatLock" target */,
+			);
 			path = EatLock;
 			sourceTree = "<group>";
 		};
@@ -112,6 +125,8 @@
 			);
 			name = EatLock;
 			packageProductDependencies = (
+				2F9137F92E0BB10A001B80B5 /* GoogleMobileAds */,
+				2F9137FA2E0BB10A001B80B5 /* GoogleUserMessagingPlatform */,
 			);
 			productName = EatLock;
 			productReference = 2F9137F02E0BB10A001B80B5 /* EatLock.app */;
@@ -195,6 +210,9 @@
 			);
 			mainGroup = 2F9137E72E0BB10A001B80B5;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2F9137F82E0BB10A001B80B5 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2F9137F12E0BB10A001B80B5 /* Products */;
 			projectDirPath = "";
@@ -206,6 +224,30 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2F9137F82E0BB10A001B80B5 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2F9137F92E0BB10A001B80B5 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F9137F82E0BB10A001B80B5 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+		2F9137FA2E0BB10A001B80B5 /* GoogleUserMessagingPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F9137F82E0BB10A001B80B5 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleUserMessagingPlatform;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		2F9137EE2E0BB10A001B80B5 /* Resources */ = {

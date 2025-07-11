@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// ログ詳細モーダル表示ビュー
 /// Issue 28の要件に従って実装

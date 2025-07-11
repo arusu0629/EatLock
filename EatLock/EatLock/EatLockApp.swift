@@ -59,7 +59,7 @@ struct EatLockApp: App {
                         group.addTask {
                             // UI表示後に遅延実行
                             try? await Task.sleep(for: .milliseconds(500))
-                            AdManager.shared.initialize()
+                            await AdManager.shared.initialize()
                         }
                     }
                 }

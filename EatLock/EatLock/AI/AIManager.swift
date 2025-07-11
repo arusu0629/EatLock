@@ -82,7 +82,7 @@ final class AIManager: ObservableObject {
         
         switch result {
         case .success(let feedback):
-            logger.info("Feedback generated successfully: type=\(feedback.type), calories=\(feedback.preventedCalories)")
+            logger.info("Feedback generated successfully: type=\(feedback.type.rawValue), calories=\(feedback.preventedCalories)")
             return .success(feedback)
         case .failure(let error):
             logger.error("Feedback generation failed: \(error.localizedDescription)")

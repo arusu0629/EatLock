@@ -10,6 +10,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @available(*, deprecated, message: "Use LogDetailView in NavigationDestination.swift instead")
 struct LogDetailModal: View {
@@ -120,6 +121,7 @@ struct LogDetailModal: View {
 }
 
 #Preview {
+    @State var isPresented = true
     let sampleLog = ActionLog(content: "夜中にアイスクリームを食べたくなったが、水を飲んで我慢した", logType: .success)
     sampleLog.setAIFeedback("素晴らしい自制心です！水を飲むのは良い対策ですね。次回も同じ方法でトライしてみてください。", preventedCalories: 200)
     sampleLog.addEmotionTag("達成感")
@@ -133,6 +135,6 @@ struct LogDetailModal: View {
     return LogDetailModal(
         actionLog: sampleLog,
         repository: repository,
-        isPresented: .constant(true)
+        isPresented: $isPresented
     )
 }
