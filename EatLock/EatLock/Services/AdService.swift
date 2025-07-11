@@ -194,7 +194,9 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     
     /// テストデバイスの設定
     private func setupTestDevices() {
-        GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = testDeviceIds
+        if !testDeviceIds.isEmpty {
+            GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = testDeviceIds
+        }
     }
     
     /// バナー広告を読み込み
