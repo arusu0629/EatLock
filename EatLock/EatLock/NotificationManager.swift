@@ -101,7 +101,7 @@ final class NotificationManager: ObservableObject {
         
         // 既に権限が決定している場合はスキップ
         if authorizationStatus != .notDetermined {
-            logger.info("Notification permission already determined: \(self.authorizationStatus) (\(self.authorizationStatus.rawValue))")
+            logger.info("Notification permission already determined: \(authorizationStatusDescription)")
             markPermissionAsRequested()
             return
         }
@@ -340,7 +340,7 @@ final class NotificationManager: ObservableObject {
     private func updateAuthorizationStatus() async {
         let settings = await notificationCenter.notificationSettings()
         authorizationStatus = settings.authorizationStatus
-        logger.info("Authorization status updated: \(self.authorizationStatus) (\(self.authorizationStatus.rawValue))")
+        logger.info("Authorization status updated: \(authorizationStatusDescription)")
     }
     
     /// 通知権限をチェック
@@ -430,6 +430,15 @@ final class NotificationManager: ObservableObject {
     /// デイリーリマインダーの有効/無効設定を保存
     private func saveDailyReminderEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: dailyReminderEnabledKey)
+    }
+}
+
+// MARK: - Private Extensions
+
+private extension NotificationManager {
+    /// 認証ステータスの説明文を取得
+    var authorizationStatusDescription: String {
+        "\(authorizationStatus) (\(authorizationStatus.rawValue))"
     }
 }
 

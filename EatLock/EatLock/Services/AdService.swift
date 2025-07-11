@@ -12,12 +12,13 @@ import SwiftUI
 import os.log
 
 /// 広告サービスのプロトコル
+@MainActor
 protocol AdServiceProtocol {
     /// 広告SDKを初期化
     func initialize()
     
     /// バナー広告を読み込み
-    func loadBannerAd(for view: GADBannerView)
+    func loadBannerAd(for view: BannerView)
     
     /// 広告読み込みを再試行
     func retryAdLoading()
@@ -64,10 +65,13 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     @Published var consentStatus: ConsentStatus = .unknown
     
     // 現在のバナービューの弱参照（簡素化）
-    private weak var currentBannerView: GADBannerView?
+    private weak var currentBannerView: BannerView?
     
     // ログ用のOSLog
     private let logger = Logger(subsystem: "com.arusu0629.EatLock", category: "AdService")
+    
+    // テストデバイスID
+    private static let simulatorTestDeviceID = "GADSimulatorID"
     
     // Published プロパティへのアクセス
     var adLoadingStatePublisher: Published<AdLoadingState>.Publisher {
@@ -77,7 +81,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     private lazy var testDeviceIds: [String] = {
         #if DEBUG
         return [
-            GADSimulatorID,  // シミュレーター用
+            Self.simulatorTestDeviceID,  // シミュレーター用
             // 実機のテストデバイスIDをここに追加
         ]
         #else
@@ -105,7 +109,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         checkConsentStatus()
         
         // AdMob SDKの初期化
-        GADMobileAds.sharedInstance().start { [weak self] status in
+        MobileAds.shared.start { [weak self] status in
             self?.handleInitializationResult(status)
         }
     }
@@ -153,10 +157,18 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         
         logger.info("同意フォームを表示中...")
         
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first,
-              let rootViewController = window.rootViewController else {
+        guard let rootViewController = findRootViewController() else {
             logger.error("ルートビューコントローラーが見つかりません")
+            return
+        }
+        
+        // 既に別のビューコントローラーが表示中でないかチェック
+        guard rootViewController.presentedViewController == nil else {
+            logger.warning("別のビューコントローラーが表示中のため、同意フォームの表示を延期します")
+            // 少し待ってから再試行
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.presentConsentForm()
+            }
             return
         }
         
@@ -169,6 +181,13 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
                 
                 guard let form = form else {
                     self?.logger.error("同意フォームが取得できませんでした")
+                    return
+                }
+                
+                // 再度チェック（非同期処理のため状態が変わっている可能性）
+                guard let rootViewController = self?.findRootViewController(),
+                      rootViewController.presentedViewController == nil else {
+                    self?.logger.warning("同意フォーム表示時に別のビューコントローラーが表示中です")
                     return
                 }
                 
@@ -185,8 +204,19 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         }
     }
     
+    /// 安全にrootViewControllerを取得
+    private func findRootViewController() -> UIViewController? {
+        // iOS 15以降の推奨方法：connectedScenesから安全に取得
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let window = windowScene.windows.first(where: { $0.isKeyWindow }) else {
+            return nil
+        }
+        return window.rootViewController
+    }
+    
     /// 初期化結果を処理
-    private func handleInitializationResult(_ status: GADInitializationStatus) {
+    private func handleInitializationResult(_ status: InitializationStatus) {
         // 新しいSDKバージョンではadapterStatusesプロパティは利用できません
         logger.info("AdMob SDK初期化完了")
         setupTestDevices()
@@ -195,12 +225,12 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     /// テストデバイスの設定
     private func setupTestDevices() {
         if !testDeviceIds.isEmpty {
-            GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = testDeviceIds
+            MobileAds.shared.requestConfiguration.testDeviceIdentifiers = testDeviceIds
         }
     }
     
     /// バナー広告を読み込み
-    func loadBannerAd(for view: GADBannerView) {
+    func loadBannerAd(for view: BannerView) {
         // ユーザー同意が必要な場合は読み込みを待機
         guard consentStatus == .obtained || consentStatus == .notRequired else {
             logger.info("ユーザー同意待ちのため、広告読み込みを待機します")
@@ -211,7 +241,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
         adLoadingState = .loading
         currentBannerView = view
         
-        let request = GADRequest()
+        let request = Request()
         view.delegate = self
         view.load(request)
         
@@ -261,29 +291,29 @@ enum AdLoadingError: Error, LocalizedError {
     }
 }
 
-// MARK: - GADBannerViewDelegate
-extension AdManager: GADBannerViewDelegate {
-    func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+// MARK: - BannerViewDelegate
+extension AdManager: BannerViewDelegate {
+    func bannerViewDidReceiveAd(_ bannerView: BannerView) {
         logger.info("バナー広告の読み込みが成功しました")
         adLoadingState = .loaded
     }
     
-    nonisolated func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+    nonisolated func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
         logger.error("バナー広告の読み込みに失敗しました: \(error.localizedDescription)")
         Task { @MainActor in
             adLoadingState = .failed(error)
         }
     }
     
-    func bannerViewWillPresentScreen(_ bannerView: GADBannerView) {
+    func bannerViewWillPresentScreen(_ bannerView: BannerView) {
         logger.debug("バナー広告が画面を表示します")
     }
     
-    func bannerViewWillDismissScreen(_ bannerView: GADBannerView) {
+    func bannerViewWillDismissScreen(_ bannerView: BannerView) {
         logger.debug("バナー広告が画面を非表示にします")
     }
     
-    func bannerViewDidDismissScreen(_ bannerView: GADBannerView) {
+    func bannerViewDidDismissScreen(_ bannerView: BannerView) {
         logger.debug("バナー広告が画面を非表示にしました")
     }
 }
