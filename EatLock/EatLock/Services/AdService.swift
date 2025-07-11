@@ -70,6 +70,9 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     // ログ用のOSLog
     private let logger = Logger(subsystem: "com.arusu0629.EatLock", category: "AdService")
     
+    // テストデバイスID
+    private static let simulatorTestDeviceID = "GADSimulatorID"
+    
     // Published プロパティへのアクセス
     var adLoadingStatePublisher: Published<AdLoadingState>.Publisher {
         return $adLoadingState
@@ -78,7 +81,7 @@ class AdManager: NSObject, AdServiceProtocol, ObservableObject {
     private lazy var testDeviceIds: [String] = {
         #if DEBUG
         return [
-            "GADSimulatorID",  // シミュレーター用
+            Self.simulatorTestDeviceID,  // シミュレーター用
             // 実機のテストデバイスIDをここに追加
         ]
         #else
