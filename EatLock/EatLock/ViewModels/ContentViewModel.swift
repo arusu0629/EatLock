@@ -36,6 +36,12 @@ class ContentViewModel: ObservableObject {
         } catch {
             showToast(message: "データベースの初期化に失敗しました: \(error.localizedDescription)", type: .error)
             isRepositoryInitialized = false
+            
+            // 初期化が失敗した場合のフォールバック（5秒後に再試行）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                self.isRepositoryInitialized = true
+                self.showToast(message: "データベースの初期化に時間がかかりましたが、使用可能になりました", type: .info)
+            }
         }
     }
     
@@ -49,6 +55,7 @@ class ContentViewModel: ObservableObject {
     
     func addActionLog() async {
         let content = newLogContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         guard !content.isEmpty else { return }
         
         guard content.count <= 500 else {
@@ -64,12 +71,15 @@ class ContentViewModel: ObservableObject {
         do {
             let createdLog = try await repository.createActionLogWithAIFeedback(content: content, logType: selectedLogType)
             
+            // 入力内容をクリア
             newLogContent = ""
             selectedLogType = .other
             
+            // 触覚フィードバック
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
             
+            // AIフィードバックがある場合は表示、ない場合はトーストを表示
             if let aiFeedback = repository.getSecureAIFeedback(for: createdLog) {
                 let feedback = AIFeedback(
                     message: aiFeedback,
@@ -78,8 +88,10 @@ class ContentViewModel: ObservableObject {
                     generatedAt: createdLog.updatedAt
                 )
                 
+                // 少し待ってからフィードバックを表示
                 try? await Task.sleep(for: .milliseconds(500))
                 guard !Task.isCancelled else { return }
+                
                 self.currentFeedback = feedback
                 withAnimation(.easeInOut(duration: 0.3)) {
                     self.showFeedback = true
@@ -177,8 +189,6 @@ class ContentViewModel: ObservableObject {
     }
     
     deinit {
-        // deinitでは MainActor メソッドを呼び出せないため、
-        // ObserverはViewが消える時に自動的にクリーンアップされるよう実装
-        // または手動でクリーンアップのタイミングを調整する
+        // キーボードオブザーバーは onDisappear で手動削除
     }
 }

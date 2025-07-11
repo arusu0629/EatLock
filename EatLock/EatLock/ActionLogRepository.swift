@@ -482,10 +482,9 @@ class ActionLogRepository {
         
         // キャッシュに保存（サイズ制限付き）
         if decryptionCache.count >= maxCacheSize {
-            // 古いエントリを削除
-            let oldestKey = decryptionCache.keys.first
-            if let key = oldestKey {
-                decryptionCache.removeValue(forKey: key)
+            // LRU方式でキャッシュをクリア（最初のエントリを削除）
+            if let oldestKey = decryptionCache.keys.first {
+                decryptionCache.removeValue(forKey: oldestKey)
             }
         }
         decryptionCache[actionLog.id] = content

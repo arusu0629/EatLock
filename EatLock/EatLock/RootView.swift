@@ -19,7 +19,10 @@ struct RootView: View {
     @State private var showTutorial = false
     
     var body: some View {
-        NavigationStack(path: $router.navigationPath) {
+        NavigationStack(path: Binding(
+            get: { router.navigationPath },
+            set: { router.navigationPath = $0 }
+        )) {
             // ホーム画面をベースとして表示
             ContentView()
                 .navigationDestination(for: NavigationDestination.self) { destination in

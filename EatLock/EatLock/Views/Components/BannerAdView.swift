@@ -12,7 +12,7 @@ import Combine
 /// SwiftUI用のバナー広告ビュー
 struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
-    let adSize: GADAdSize
+    let adSize: AdSize
     
     @ObservedObject private var adManager = AdManager.shared
     
@@ -20,13 +20,13 @@ struct BannerAdView: UIViewRepresentable {
     /// - Parameters:
     ///   - adUnitID: 広告ユニットID。指定しない場合はAppConfigから取得
     ///   - adSize: 広告サイズ。デフォルトはバナーサイズ
-    init(adUnitID: String? = nil, adSize: GADAdSize = GADAdSizeBanner) {
+    init(adUnitID: String? = nil, adSize: AdSize? = nil) {
         self.adUnitID = adUnitID ?? AppConfig.currentBannerAdUnitID
-        self.adSize = adSize
+        self.adSize = adSize ?? AdSize(size: CGSize(width: 320, height: 50), flags: 0)
     }
     
-    func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = GADBannerView(adSize: adSize)
+    func makeUIView(context: Context) -> BannerView {
+        let bannerView = BannerView(adSize: adSize)
         bannerView.adUnitID = adUnitID
         bannerView.rootViewController = findRootViewController()
         
@@ -36,7 +36,7 @@ struct BannerAdView: UIViewRepresentable {
         return bannerView
     }
     
-    func updateUIView(_ uiView: GADBannerView, context: Context) {
+    func updateUIView(_ uiView: BannerView, context: Context) {
         // 必要に応じて広告を再読み込み
         if uiView.adUnitID != adUnitID {
             uiView.adUnitID = adUnitID

@@ -9,7 +9,9 @@
       "mcp__github__get_pull_request",
       "mcp__github__get_pull_request_comments",
       "mcp__github__create_issue",
-      "mcp__github__get_pull_request_reviews"
+      "mcp__github__get_pull_request_reviews",
+      "Bash(git add:*)",
+      "Bash(plutil:*)"
     ],
     "deny": []
   }
